@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPA Segura • Gestão de Segurança do Trabalho</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        lpaDark: '#05130d',
+                        lpaCard: '#0b2418',
+                        lpaBorder: '#164e32',
+                        lpaGreen: '#15803d',
+                        lpaAccent: '#22c55e',
+                        lpaLight: '#4ade80'
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js & DataLabels plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #05130d; color: #f0fdf4; }
+        .glass-panel { background: rgba(11, 36, 24, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(22, 78, 50, 0.8); box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7); }
+        .slide-tab.active { border-bottom: 4px solid #22c55e; color: #4ade80; font-weight: 800; background: rgba(21, 128, 61, 0.25); }
+        .db-tab.active { background: #15803d; color: #ffffff; font-weight: bold; }
+        [contenteditable="true"]:hover { outline: 1px dashed #22c55e; border-radius: 4px; cursor: text; background: rgba(34, 197, 94, 0.03); }
+        [contenteditable="true"]:focus { outline: 2px solid #22c55e; border-radius: 4px; background: rgba(34, 197, 94, 0.08); }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #05130d; }
+        ::-webkit-scrollbar-thumb { background: #164e32; border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-lpaGreen selection:text-white">
+
+    <!-- Header -->
+    <header class="bg-lpaDark/95 border-b border-lpaBorder sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-br from-lpaGreen to-lpaAccent p-2.5 rounded-xl shadow-lg flex items-center justify-center text-slate-950 font-black text-base">
+                    LPA
+                </div>
+                <div>
+                    <h1 class="font-black text-lg tracking-wider text-white" contenteditable="true">LATICÍNIOS PORTO ALEGRE</h1>
+                    <p id="txtSubHeader" class="text-xs font-bold text-lpaLight tracking-widest uppercase" contenteditable="true">Segurança do Trabalho • Painel Executivo</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <div class="bg-lpaDark border border-lpaBorder px-3 py-1.5 rounded-xl flex items-center space-x-2">
+                    <i class="fa-solid fa-globe text-lpaLight text-xs"></i>
+                    <select id="langSelect" onchange="changeLanguage(this.value)" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer">
+                        <option value="pt" class="bg-lpaDark">Português</option>
+                        <option value="en" class="bg-lpaDark">English</option>
+                        <option value="es" class="bg-lpaDark">Español</option>
+                    </select>
+                </div>
+
+                <div class="bg-lpaDark border border-lpaBorder p-1 rounded-xl flex items-center text-xs">
+                    <button onclick="setViewMode('mensal')" id="modeMensal" class="px-3 py-1.5 rounded-lg font-bold transition bg-lpaGreen text-slate-950" data-i18n="modeMensal">Mensal</button>
+                    <button onclick="setViewMode('acumulado')" id="modeAcumulado" class="px-3 py-1.5 rounded-lg font-bold transition text-slate-300 hover:text-white" data-i18n="modeAcumulado">Acumulado</button>
+                </div>
+
+                <div class="bg-lpaDark border border-lpaBorder p-1 rounded-xl flex items-center text-xs">
+                    <button onclick="setValueFormat('num')" id="fmtNum" class="px-2.5 py-1.5 rounded-lg font-bold transition bg-lpaGreen text-slate-950">Valores</button>
+                    <button onclick="setValueFormat('perc')" id="fmtPerc" class="px-2.5 py-1.5 rounded-lg font-bold transition text-slate-300 hover:text-white">%</button>
+                </div>
+
+                <button onclick="openDataModal()" class="bg-lpaCard hover:bg-lpaBorder text-white font-bold px-3 py-2 rounded-xl text-xs transition border border-lpaBorder flex items-center space-x-1.5 cursor-pointer shadow-md">
+                    <i class="fa-solid fa-database text-lpaLight"></i>
+                    <span id="btnDbText" data-i18n="dbText">Banco de Dados</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navegação por Slides -->
+    <div class="bg-lpaDark border-b border-lpaBorder overflow-x-auto shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 py-1">
+            <button onclick="switchSlide(1)" id="btnSlide1" class="slide-tab active py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-300"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-lpaLight font-bold">1</span><span data-i18n="nav1" contenteditable="true">Painel & KPIs</span></button>
+            <button onclick="switchSlide(2)" id="btnSlide2" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">2</span><span data-i18n="nav2" contenteditable="true">Freq. & Grav.</span></button>
+            <button onclick="switchSlide(3)" id="btnSlide3" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">3</span><span data-i18n="nav3" contenteditable="true">Anatomia & IAG</span></button>
+            <button onclick="switchSlide(4)" id="btnSlide4" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">4</span><span data-i18n="nav4" contenteditable="true">Planos & Setores</span></button>
+            <button onclick="switchSlide(5)" id="btnSlide5" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">5</span><span data-i18n="nav5" contenteditable="true">CIPA & Brigada</span></button>
+            <button onclick="switchSlide(6)" id="btnSlide6" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">6</span><span data-i18n="nav6" contenteditable="true">Auditoria NRs</span></button>
+            <button onclick="switchSlide(7)" id="btnSlide7" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">7</span><span data-i18n="nav7" contenteditable="true">Near Miss</span></button>
+            <button onclick="switchSlide(8)" id="btnSlide8" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">8</span><span data-i18n="nav8" contenteditable="true">Inspeções & DDS</span></button>
+            <button onclick="switchSlide(9)" id="btnSlide9" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">9</span><span data-i18n="nav9" contenteditable="true">Treinamentos</span></button>
+            <button onclick="switchSlide(10)" id="btnSlide10" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-lpaLight font-bold"><span class="bg-lpaGreen w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-white font-black">10</span><span><i class="fa-solid fa-sliders mr-1"></i> <span data-i18n="nav10" contenteditable="true">Command Center</span></span></button>
+        </div>
+    </div>
+
+    <!-- Workspace Principal -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- SLIDE 1 -->
+        <div id="slideContent-1" class="space-y-8">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="flex items-center justify-between border-b border-lpaBorder pb-4">
+                    <div>
+                        <span id="badgeMode1" class="text-xs font-black uppercase tracking-widest text-lpaLight bg-lpaDark px-3 py-1 rounded border border-lpaBorder" contenteditable="true">Modo: Mensal</span>
+                        <h2 class="text-3xl font-black text-white mt-2" data-i18n="s1Title" contenteditable="true">Painel Executivo • Indicadores de Segurança</h2>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-lpaDark/80 rounded-2xl p-6 border border-lpaBorder"><p class="text-xs font-bold uppercase text-slate-400" data-i18n="kpi1" contenteditable="true">Dias Sem Acidente</p><h3 id="kpiDias" class="text-4xl font-black text-white mt-2">--</h3></div>
+                    <div class="bg-lpaDark/80 rounded-2xl p-6 border border-lpaBorder"><p class="text-xs font-bold uppercase text-slate-400" data-i18n="kpi2" contenteditable="true">IAG (Gravidade Média)</p><h3 id="kpiIAG" class="text-4xl font-black text-amber-400 mt-2">--</h3></div>
+                    <div class="bg-lpaDark/80 rounded-2xl p-6 border border-lpaBorder"><p class="text-xs font-bold uppercase text-slate-400" data-i18n="kpi3" contenteditable="true">Conformidade NRs</p><h3 id="kpiNRs" class="text-4xl font-black text-blue-400 mt-2">--</h3></div>
+                    <div class="bg-lpaDark/80 rounded-2xl p-6 border border-lpaBorder"><p class="text-xs font-bold uppercase text-slate-400" data-i18n="kpi4" contenteditable="true">Efetividade CIPA</p><h3 id="kpiCipa" class="text-4xl font-black text-purple-400 mt-2">--</h3></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 id="titleCard1" class="font-bold text-white text-base" data-i18n="c1Title" contenteditable="true">Evolução Mensal de Acidentes</h3>
+                            <button onclick="exportChartHQ('chartSumarioComp', 'Evolucao_Acidentes')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer"><i class="fa-solid fa-download mr-1"></i><span data-i18n="btnDownload">Baixar PNG</span></button>
+                        </div>
+                        <div class="h-72 relative"><canvas id="chartSumarioComp"></canvas></div>
+                    </div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-white text-base mb-3" data-i18n="highlights" contenteditable="true">Destaques e Direcionamento</h3>
+                            <ul class="space-y-3 text-sm text-slate-300" id="highlightList">
+                                <li class="flex items-start" contenteditable="true"><i class="fa-solid fa-circle-check text-lpaLight mt-1 mr-2.5"></i><span data-i18n="hl1">Redução na frequência de acidentes severos em relação ao período anterior.</span></li>
+                                <li class="flex items-start" contenteditable="true"><i class="fa-solid fa-circle-check text-lpaLight mt-1 mr-2.5"></i><span data-i18n="hl2">Inspeções preventivas mantidas acima de 95% do planejado.</span></li>
+                                <li class="flex items-start" contenteditable="true"><i class="fa-solid fa-circle-check text-lpaLight mt-1 mr-2.5"></i><span data-i18n="hl3">CIPA atuando com alta eficiência na resolução de desvios.</span></li>
+                            </ul>
+                        </div>
+                        <div class="bg-lpaDark p-4 rounded-xl border border-lpaBorder text-xs text-slate-400 mt-4" contenteditable="true">
+                            <strong class="text-white">Laticínios Porto Alegre • LPA Segura</strong> | Foco absoluto na integridade operacional.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 -->
+        <div id="slideContent-2" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4"><h2 class="text-3xl font-black text-white" data-i18n="s2Title" contenteditable="true">Taxas de Frequência e Gravidade</h2></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 id="titleCard2" class="font-bold text-white text-base" data-i18n="c2Title" contenteditable="true">Taxa de Frequência</h3><button onclick="exportChartHQ('chartFreq25vs26', 'Taxa_Frequencia')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartFreq25vs26"></canvas></div>
+                    </div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 id="titleCard3" class="font-bold text-white text-base" data-i18n="c3Title" contenteditable="true">Taxa de Gravidade</h3><button onclick="exportChartHQ('chartGrav25vs26', 'Taxa_Gravidade')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartGrav25vs26"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3 -->
+        <div id="slideContent-3" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4"><h2 class="text-3xl font-black text-white" data-i18n="s3Title" contenteditable="true">Anatomia dos Acidentes e IAG</h2></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base" data-i18n="c4Title" contenteditable="true">Partes do Corpo Atingidas</h3><button onclick="exportChartHQ('chartPartesCorpo', 'Partes_Corpo')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartPartesCorpo"></canvas></div>
+                    </div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base" data-i18n="c5Title" contenteditable="true">Tipos de Lesão Registrados</h3><button onclick="exportChartHQ('chartTiposLesao', 'Tipos_Lesao')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartTiposLesao"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4 -->
+        <div id="slideContent-4" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4"><h2 class="text-3xl font-black text-white" data-i18n="s4Title" contenteditable="true">Planos de Ação e Setores</h2></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base" data-i18n="c6Title" contenteditable="true">Status de Planos de Ação</h3><button onclick="exportChartHQ('chartPlanosAcao', 'Planos_Acao')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartPlanosAcao"></canvas></div>
+                    </div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base" data-i18n="c7Title" contenteditable="true">Ranking de Setores com Maior Desvio</h3><button onclick="exportChartHQ('chartSetoresDesvio', 'Ranking_Setores')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartSetoresDesvio"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5 -->
+        <div id="slideContent-5" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4"><h2 class="text-3xl font-black text-white" data-i18n="s5Title" contenteditable="true">CIPA e Brigada</h2></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 id="titleCard8" class="font-bold text-white text-base" data-i18n="c8Title" contenteditable="true">Propostas CIPA</h3><button onclick="exportChartHQ('chartCipaEvolucao', 'Propostas_CIPA')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartCipaEvolucao"></canvas></div>
+                    </div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base" data-i18n="c9Title" contenteditable="true">Prontidão da Brigada de Incêndio</h3><button onclick="exportChartHQ('chartBrigadaProntidao', 'Prontidao_Brigada')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartBrigadaProntidao"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6 -->
+        <div id="slideContent-6" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4"><h2 class="text-3xl font-black text-white" data-i18n="s6Title" contenteditable="true">Auditoria nas NRs Críticas</h2></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 id="titleCard10" class="font-bold text-white text-base" data-i18n="c10Title" contenteditable="true">Conformidade NRs</h3><button onclick="exportChartHQ('chartNRConformidade', 'Conformidade_NRs')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartNRConformidade"></canvas></div>
+                    </div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base" data-i18n="c11Title" contenteditable="true">Adequação de Máquinas (NR-12)</h3><button onclick="exportChartHQ('chartNR12Maquinas', 'Adequacao_NR12')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartNR12Maquinas"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7 -->
+        <div id="slideContent-7" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4"><h2 class="text-3xl font-black text-white" data-i18n="s7Title" contenteditable="true">Near Miss e Desvios Comportamentais</h2></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 id="titleCard12" class="font-bold text-white text-base" data-i18n="c12Title" contenteditable="true">Near Miss Reportados</h3><button onclick="exportChartHQ('chartNearMiss', 'Near_Miss')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartNearMiss"></canvas></div>
+                    </div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base" data-i18n="c13Title" contenteditable="true">Atos vs Condições Inseguras</h3><button onclick="exportChartHQ('chartAtosCondicoes', 'Atos_vs_Condicoes')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartAtosCondicoes"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8 -->
+        <div id="slideContent-8" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4"><h2 class="text-3xl font-black text-white" data-i18n="s8Title" contenteditable="true">Inspeções e Diálogos de Segurança (DDS)</h2></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 id="titleCard14" class="font-bold text-white text-base" data-i18n="c14Title" contenteditable="true">Inspeções Planejadas vs Realizadas</h3><button onclick="exportChartHQ('chartInspecoesPR', 'Inspecao_PR')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartInspecoesPR"></canvas></div>
+                    </div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base" data-i18n="c15Title" contenteditable="true">Participação em DDS por Setor</h3><button onclick="exportChartHQ('chartDDSsetor', 'Participacao_DDS')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartDDSsetor"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 9 -->
+        <div id="slideContent-9" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4"><h2 class="text-3xl font-black text-white" data-i18n="s9Title" contenteditable="true">Treinamentos de Segurança</h2></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 id="titleCard16" class="font-bold text-white text-base" data-i18n="c16Title" contenteditable="true">Horas de Treinamento</h3><button onclick="exportChartHQ('chartTreinamentos', 'Horas_Treinamento')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartTreinamentos"></canvas></div>
+                    </div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base" data-i18n="c17Title" contenteditable="true">Distribuição por Tema</h3><button onclick="exportChartHQ('chartTemasTreino', 'Temas_Treinamento')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartTemasTreino"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 10 (COMMAND CENTER TOTAL) -->
+        <div id="slideContent-10" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <span class="text-xs font-black uppercase tracking-widest text-white bg-lpaGreen px-3 py-1 rounded">Slide 10 de 10</span>
+                        <h2 class="text-3xl font-black text-white mt-2" data-i18n="nav10" contenteditable="true">Command Center</h2>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="downloadAllCommandCenterCharts()" class="bg-lpaGreen hover:bg-lpaAccent text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs transition shadow-lg flex items-center space-x-2 cursor-pointer">
+                            <i class="fa-solid fa-download"></i>
+                            <span data-i18n="btnDownloadAll">Baixar Todos em Lote</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 bg-lpaDark p-3 rounded-2xl border border-lpaBorder text-xs">
+                    <span class="font-bold text-slate-300">Exibir:</span>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk1" checked onchange="renderCommandCenter()"><span>1.Acidentes</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk2" checked onchange="renderCommandCenter()"><span>2.Freq.</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk3" checked onchange="renderCommandCenter()"><span>3.Grav.</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk4" checked onchange="renderCommandCenter()"><span>4.Corpo</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk5" checked onchange="renderCommandCenter()"><span>5.Lesão</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk6" checked onchange="renderCommandCenter()"><span>6.Planos</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk7" checked onchange="renderCommandCenter()"><span>7.Setores</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk8" checked onchange="renderCommandCenter()"><span>8.CIPA</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk9" checked onchange="renderCommandCenter()"><span>9.Brigada</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk10" checked onchange="renderCommandCenter()"><span>10.NRs</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk11" checked onchange="renderCommandCenter()"><span>11.NR12</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk12" checked onchange="renderCommandCenter()"><span>12.NearMiss</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk13" checked onchange="renderCommandCenter()"><span>13.Atos/Cond.</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk14" checked onchange="renderCommandCenter()"><span>14.Inspeção</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk15" checked onchange="renderCommandCenter()"><span>15.DDS</span></label>
+                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" id="chk16" checked onchange="renderCommandCenter()"><span>16.Treino</span></label>
+                </div>
+
+                <div id="ccGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div id="ccCard_1" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">1. Acidentes Comp.</h4><button onclick="exportChartHQ('ccCanvas1', 'Acidentes_Comp')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas1"></canvas></div></div>
+                    <div id="ccCard_2" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">2. Frequência</h4><button onclick="exportChartHQ('ccCanvas2', 'Frequencia')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas2"></canvas></div></div>
+                    <div id="ccCard_3" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">3. Gravidade</h4><button onclick="exportChartHQ('ccCanvas3', 'Gravidade')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas3"></canvas></div></div>
+                    <div id="ccCard_4" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">4. Partes do Corpo</h4><button onclick="exportChartHQ('ccCanvas4', 'Partes_Corpo')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas4"></canvas></div></div>
+                    <div id="ccCard_5" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">5. Tipos de Lesão</h4><button onclick="exportChartHQ('ccCanvas5', 'Tipos_Lesao')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas5"></canvas></div></div>
+                    <div id="ccCard_6" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">6. Planos de Ação</h4><button onclick="exportChartHQ('ccCanvas6', 'Planos_Acao')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas6"></canvas></div></div>
+                    <div id="ccCard_7" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">7. Ranking Setores</h4><button onclick="exportChartHQ('ccCanvas7', 'Ranking_Setores')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas7"></canvas></div></div>
+                    <div id="ccCard_8" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">8. CIPA Efetividade</h4><button onclick="exportChartHQ('ccCanvas8', 'CIPA_Efetividade')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas8"></canvas></div></div>
+                    <div id="ccCard_9" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">9. Brigada Prontidão</h4><button onclick="exportChartHQ('ccCanvas9', 'Brigada_Prontidao')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas9"></canvas></div></div>
+                    <div id="ccCard_10" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">10. NRs Conformidade</h4><button onclick="exportChartHQ('ccCanvas10', 'Conformidade_NRs')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas10"></canvas></div></div>
+                    <div id="ccCard_11" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">11. NR-12 Máquinas</h4><button onclick="exportChartHQ('ccCanvas11', 'NR12_Maquinas')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas11"></canvas></div></div>
+                    <div id="ccCard_12" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">12. Near Miss</h4><button onclick="exportChartHQ('ccCanvas12', 'Near_Miss')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas12"></canvas></div></div>
+                    <div id="ccCard_13" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">13. Atos vs Condições</h4><button onclick="exportChartHQ('ccCanvas13', 'Atos_vs_Condicoes')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas13"></canvas></div></div>
+                    <div id="ccCard_14" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">14. Inspeções P vs R</h4><button onclick="exportChartHQ('ccCanvas14', 'Inspecao_PR')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas14"></canvas></div></div>
+                    <div id="ccCard_15" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">15. DDS Participação</h4><button onclick="exportChartHQ('ccCanvas15', 'DDS_Participacao')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas15"></canvas></div></div>
+                    <div id="ccCard_16" class="bg-lpaDark/70 rounded-2xl p-5 border border-lpaBorder"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-white text-sm" contenteditable="true">16. Horas Treinamento</h4><button onclick="exportChartHQ('ccCanvas16', 'Horas_Treinamento')" class="text-[10px] bg-lpaCard px-2 py-1 rounded text-lpaLight border border-lpaBorder cursor-pointer" data-i18n="btnDownload">Baixar PNG</button></div><div class="h-60 relative"><canvas id="ccCanvas16"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer de Navegação -->
+    <footer class="bg-lpaDark border-t border-lpaBorder py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 flex items-center justify-between">
+            <button onclick="prevSlide()" class="bg-lpaCard hover:bg-lpaBorder text-white font-bold px-5 py-2.5 rounded-xl text-sm transition border border-lpaBorder flex items-center space-x-2"><i class="fa-solid fa-arrow-left"></i><span data-i18n="prev">Anterior</span></button>
+            <span id="slideIndicator" class="text-xs font-bold text-slate-400">Slide 1 de 10</span>
+            <button onclick="nextSlide()" class="bg-lpaGreen hover:bg-lpaAccent text-slate-950 font-black px-6 py-2.5 rounded-xl text-sm transition flex items-center space-x-2"><span data-i18n="next">Próximo</span><i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+    </footer>
+
+    <!-- MODAL DE BANCO DE DADOS -->
+    <div id="dataModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-3xl max-w-7xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-lpaBorder">
+            <div class="p-6 border-b border-lpaBorder flex items-center justify-between sticky top-0 bg-lpaDark z-10">
+                <div>
+                    <h3 class="font-black text-lg text-white"><i class="fa-solid fa-database text-lpaLight mr-2"></i><span data-i18n="dbTitle">Gerenciar Banco de Dados Executivo (Firebase)</span></h3>
+                    <p class="text-xs text-slate-300 mt-1" data-i18n="dbDesc">Os dados são sincronizados automaticamente na nuvem.</p>
+                </div>
+                <button onclick="closeDataModal()" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-6 space-y-6">
+                <!-- Abas de Navegação do Banco de Dados -->
+                <div class="flex space-x-2 border-b border-lpaBorder pb-3 overflow-x-auto">
+                    <button onclick="switchDbTab('geral')" id="dbTabGeral" class="db-tab active px-4 py-2 rounded-xl text-xs transition cursor-pointer whitespace-nowrap">1. Geral & Acidentes</button>
+                    <button onclick="switchDbTab('anatomia')" id="dbTabAnatomia" class="db-tab px-4 py-2 rounded-xl text-xs transition cursor-pointer bg-lpaDark text-slate-300 whitespace-nowrap">2. Anatomia & Setores</button>
+                    <button onclick="switchDbTab('brigada')" id="dbTabBrigada" class="db-tab px-4 py-2 rounded-xl text-xs transition cursor-pointer bg-lpaDark text-slate-300 whitespace-nowrap">3. CIPA, Brigada & NRs</button>
+                    <button onclick="switchDbTab('treino')" id="dbTabTreino" class="db-tab px-4 py-2 rounded-xl text-xs transition cursor-pointer bg-lpaDark text-slate-300 whitespace-nowrap">4. Near Miss, Insp. & Treino</button>
+                </div>
+
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex space-x-2">
+                        <button onclick="addNewDataRow()" class="bg-lpaGreen hover:bg-lpaAccent text-slate-950 font-black px-4 py-2 rounded-xl text-xs transition flex items-center space-x-2 cursor-pointer"><i class="fa-solid fa-plus"></i><span data-i18n="btnAdd">Adicionar Mês</span></button>
+                        <button onclick="clearAllData()" class="bg-red-950 text-red-400 hover:bg-red-900 border border-red-800 font-bold px-4 py-2 rounded-xl text-xs transition flex items-center space-x-2 cursor-pointer"><i class="fa-solid fa-trash-can"></i><span data-i18n="btnClearAll">Apagar Todos os Dados</span></button>
+                    </div>
+                </div>
+
+                <!-- TABELA 1: GERAL -->
+                <div id="dbViewGeral" class="overflow-x-auto rounded-xl border border-lpaBorder">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-lpaDark text-lpaLight border-b border-lpaBorder font-bold">
+                                <th class="p-3">Ano</th>
+                                <th class="p-3">Mês (1-12)</th>
+                                <th class="p-3">HHT</th>
+                                <th class="p-3">Acid. Afast.</th>
+                                <th class="p-3">Acid. Sem Afast.</th>
+                                <th class="p-3">Dias Perdidos</th>
+                                <th class="p-3">Planos Abertos</th>
+                                <th class="p-3">Planos Vencidos</th>
+                                <th class="p-3 text-center">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalTableBodyGeral" class="divide-y divide-lpaBorder/50 text-slate-200"></tbody>
+                    </table>
+                </div>
+
+                <!-- TABELA 2: ANATOMIA & SETORES -->
+                <div id="dbViewAnatomia" class="overflow-x-auto rounded-xl border border-lpaBorder hidden">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-lpaDark text-lpaLight border-b border-lpaBorder font-bold">
+                                <th class="p-3">Ano</th>
+                                <th class="p-3">Mês (1-12)</th>
+                                <th class="p-3">Parte do Corpo (Label)</th>
+                                <th class="p-3">Qtd Corpo</th>
+                                <th class="p-3">Tipo de Lesão (Label)</th>
+                                <th class="p-3">Qtd Lesão</th>
+                                <th class="p-3">Setor com Desvio (Label)</th>
+                                <th class="p-3">Qtd Desvio Setor</th>
+                                <th class="p-3 text-center">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalTableBodyAnatomia" class="divide-y divide-lpaBorder/50 text-slate-200"></tbody>
+                    </table>
+                </div>
+
+                <!-- TABELA 3: CIPA, BRIGADA & NRs -->
+                <div id="dbViewBrigada" class="overflow-x-auto rounded-xl border border-lpaBorder hidden">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-lpaDark text-lpaLight border-b border-lpaBorder font-bold">
+                                <th class="p-3">Ano</th>
+                                <th class="p-3">Mês (1-12)</th>
+                                <th class="p-3">Brigada Aptos (%)</th>
+                                <th class="p-3">NR-10 Conf. (%)</th>
+                                <th class="p-3">NR-12 Conf. (%)</th>
+                                <th class="p-3">NR-35 Conf. (%)</th>
+                                <th class="p-3 text-center">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalTableBodyBrigada" class="divide-y divide-lpaBorder/50 text-slate-200"></tbody>
+                    </table>
+                </div>
+
+                <!-- TABELA 4: NEAR MISS, INSPEÇÕES & TREINAMENTOS -->
+                <div id="dbViewTreino" class="overflow-x-auto rounded-xl border border-lpaBorder hidden">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-lpaDark text-lpaLight border-b border-lpaBorder font-bold">
+                                <th class="p-3">Ano</th>
+                                <th class="p-3">Mês (1-12)</th>
+                                <th class="p-3">Inspeções Plan.</th>
+                                <th class="p-3">Inspeções Real.</th>
+                                <th class="p-3">Participação DDS (%)</th>
+                                <th class="p-3">Horas Trein. Plan.</th>
+                                <th class="p-3">Horas Trein. Real.</th>
+                                <th class="p-3 text-center">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalTableBodyTreino" class="divide-y divide-lpaBorder/50 text-slate-200"></tbody>
+                    </table>
+                </div>
+
+                <div class="flex justify-end pt-4 border-t border-lpaBorder">
+                    <button onclick="closeDataModal()" class="bg-lpaGreen hover:bg-lpaAccent text-slate-950 font-black px-6 py-2.5 rounded-xl text-sm transition" data-i18n="btnSave">Salvar e Atualizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Principal & Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD3ayGWDvNN8V5tgzVtQgWbDdXlcqP0nm0",
+            authDomain: "lpagestaodedados.firebaseapp.com",
+            projectId: "lpagestaodedados",
+            storageBucket: "lpagestaodedados.firebasestorage.app",
+            messagingSenderId: "834663700528",
+            appId: "1:834663700528:web:5ec4d7c35e1049a76af5f5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        Chart.register(ChartDataLabels);
+        Chart.defaults.color = '#cbd5e1';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.scale.grid.color = 'rgba(22, 78, 50, 0.3)';
+
+        window.translations = {
+            pt: {
+                subHeader: "Segurança do Trabalho • Painel Executivo",
+                dbText: "Banco de Dados",
+                nav1: "Painel & KPIs", nav2: "Freq. & Grav.", nav3: "Anatomia & IAG", nav4: "Planos & Setores", nav5: "CIPA & Brigada", nav6: "Auditoria NRs", nav7: "Near Miss", nav8: "Inspeções & DDS", nav9: "Treinamentos", nav10: "Command Center",
+                s1Title: "Painel Executivo • Indicadores de Segurança", s2Title: "Taxas de Frequência e Gravidade", s3Title: "Anatomia dos Acidentes e IAG", s4Title: "Planos de Ação e Setores", s5Title: "CIPA e Brigada", s6Title: "Auditoria nas NRs Críticas", s7Title: "Near Miss e Desvios Comportamentais", s8Title: "Inspeções e Diálogos de Segurança (DDS)", s9Title: "Treinamentos de Segurança",
+                c1Title: "Evolução Mensal de Acidentes", c2Title: "Taxa de Frequência", c3Title: "Taxa de Gravidade", c4Title: "Partes do Corpo Atingidas", c5Title: "Tipos de Lesão Registrados", c6Title: "Status de Planos de Ação", c7Title: "Ranking de Setores com Maior Desvio", c8Title: "Propostas CIPA", c9Title: "Prontidão da Brigada de Incêndio", c10Title: "Conformidade NRs", c11Title: "Adequação de Máquinas (NR-12)", c12Title: "Near Miss Reportados", c13Title: "Atos vs Condições Inseguras", c14Title: "Inspeções Planejadas vs Realizadas", c15Title: "Participação em DDS por Setor", c16Title: "Horas de Treinamento", c17Title: "Distribuição por Tema",
+                kpi1: "Dias Sem Acidente", kpi2: "IAG (Gravidade Média)", kpi3: "Conformidade NRs", kpi4: "Efetividade CIPA",
+                highlights: "Destaques e Direcionamento", hl1: "Redução na frequência de acidentes severos em relação ao período anterior.", hl2: "Inspeções preventivas mantidas acima de 95% do planejado.", hl3: "CIPA atuando com alta eficiência na resolução de desvios.",
+                btnDownload: "Baixar PNG", btnDownloadAll: "Baixar Todos em Lote",
+                prev: "Anterior", next: "Próximo", dbTitle: "Gerenciar Banco de Dados Executivo", dbDesc: "Insira ou apague todos os dados de forma livre.", btnAdd: "Adicionar Mês", btnClearAll: "Apagar Todos os Dados", btnSave: "Salvar e Atualizar",
+                modeMensal: "Mensal", modeAcumulado: "Acumulado",
+                meses: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+                ds25: "2025", ds26: "2026", dsTrend: "Tendência", dsOcc: "Ocorrências", dsPlans: "Planos", dsDev: "Desvios", dsProp: "Apresentadas", dsImp: "Implementadas", dsApt: "Aptos", dsPend: "Pendentes", dsAfast: "Afastados", dsPlan: "Planejadas", dsReal: "Realizadas"
+            },
+            en: {
+                subHeader: "Occupational Safety • Executive Dashboard",
+                dbText: "Database",
+                nav1: "Dashboard & KPIs", nav2: "Freq. & Severity", nav3: "Anatomy & IAG", nav4: "Action Plans", nav5: "CIPA & Brigade", nav6: "NRs Audit", nav7: "Near Miss", nav8: "Inspections & DDS", nav9: "Trainings", nav10: "Command Center",
+                s1Title: "Executive Dashboard • Safety Indicators", s2Title: "Frequency and Severity Rates", s3Title: "Accidents Anatomy & IAG", s4Title: "Action Plans & Sectors", s5Title: "CIPA & Brigade", s6Title: "Critical NRs Audit", s7Title: "Near Miss & Behavioral Deviations", s8Title: "Safety Inspections & DDS", s9Title: "Safety Trainings",
+                c1Title: "Monthly Accident Evolution", c2Title: "Frequency Rate", c3Title: "Severity Rate", c4Title: "Affected Body Parts", c5Title: "Registered Injury Types", c6Title: "Action Plans Status", c7Title: "Sectors Ranking by Deviation", c8Title: "CIPA Proposals", c9Title: "Fire Brigade Readiness", c10Title: "NRs Compliance", c11Title: "Machine Compliance (NR-12)", c12Title: "Reported Near Miss", c13Title: "Acts vs Unsafe Conditions", c14Title: "Planned vs Executed Inspections", c15Title: "DDS Participation by Sector", c16Title: "Training Hours", c17Title: "Distribution by Topic",
+                kpi1: "Days Without Accident", kpi2: "IAG (Avg Severity)", kpi3: "NRs Compliance", kpi4: "CIPA Effectiveness",
+                highlights: "Highlights & Guidance", hl1: "Reduction in the frequency of severe accidents compared to the previous period.", hl2: "Preventive inspections maintained above 95% of planned.", hl3: "CIPA acting with high efficiency in deviation resolution.",
+                btnDownload: "Download PNG", btnDownloadAll: "Download All (Batch)",
+                prev: "Previous", next: "Next", dbTitle: "Manage Executive Database", dbDesc: "Insert or clear all data freely.", btnAdd: "Add Record", btnClearAll: "Clear All Data", btnSave: "Save & Update",
+                modeMensal: "Monthly", modeAcumulado: "Year-to-Date",
+                meses: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                ds25: "2025", ds26: "2026", dsTrend: "Trend", dsOcc: "Occurrences", dsPlans: "Plans", dsDev: "Deviations", dsProp: "Proposed", dsImp: "Implemented", dsApt: "Fit", dsPend: "Pending", dsAfast: "On Leave", dsPlan: "Planned", dsReal: "Executed"
+            },
+            es: {
+                subHeader: "Seguridad Laboral • Panel Ejecutivo",
+                dbText: "Base de Datos",
+                nav1: "Panel y KPIs", nav2: "Freq. y Gravedad", nav3: "Anatomía y IAG", nav4: "Planes y Sectores", nav5: "CIPA y Brigada", nav6: "Auditoría NRs", nav7: "Near Miss", nav8: "Inspecciones", nav9: "Capacitaciones", nav10: "Command Center",
+                s1Title: "Panel Ejecutivo • Indicadores de Seguridad", s2Title: "Tasas de Frecuencia y Gravedad", s3Title: "Anatomía de Accidentes y IAG", s4Title: "Planes de Acción y Sectores", s5Title: "CIPA y Brigada", s6Title: "Auditoría de NRs Críticas", s7Title: "Near Miss y Desviaciones", s8Title: "Inspecciones y DDS", s9Title: "Capacitaciones de Seguridad",
+                c1Title: "Evolución Mensal de Acidentes", c2Title: "Tasa de Frequencia", c3Title: "Tasa de Gravidade", c4Title: "Partes do Corpo Afectadas", c5Title: "Tipos de Lesión Registrados", c6Title: "Estado de Planes de Acción", c7Title: "Ranking de Sectores por Desviación", c8Title: "Propuestas CIPA", c9Title: "Prontitud de la Brigada", c10Title: "Cumplimiento NRs", c11Title: "Adequación de Máquinas (NR-12)", c12Title: "Near Miss Reportados", c13Title: "Actos vs Condiciones Inseguras", c14Title: "Inspecciones Planificadas vs Ejecutadas", c15Title: "Participación en DDS", c16Title: "Horas de Capacitación", c17Title: "Distribución por Tema",
+                kpi1: "Dias sin Accidentes", kpi2: "IAG (Gravedad Promedio)", kpi3: "Cumplimiento NRs", kpi4: "Efectividad CIPA",
+                highlights: "Puntos Destacados", hl1: "Reducción en la frecuencia de accidentes graves en comparación con el período anterior.", hl2: "Inspecciones preventivas mantenidas por encima del 95% de lo planeado.", hl3: "CIPA actuando com alta eficiência en la resolución de desviaciones.",
+                btnDownload: "Descargar PNG", btnDownloadAll: "Descargar Todos",
+                prev: "Anterior", next: "Siguiente", dbTitle: "Gestionar Base de Datos Ejecutiva", dbDesc: "Insira ou apague todos os dados de forma livre.", btnAdd: "Agregar Mes", btnClearAll: "Borrar Todos los Datos", btnSave: "Guardar y Atualizar",
+                modeMensal: "Mensal", modeAcumulado: "Acumulado",
+                meses: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                ds25: "2025", ds26: "2026", dsTrend: "Tendencia", dsOcc: "Ocurrencias", dsPlans: "Planes", dsDev: "Desviaciones", dsProp: "Propuestas", dsImp: "Implementadas", dsApt: "Aptos", dsPend: "Pendientes", dsAfast: "Ausentes", dsPlan: "Planificadas", dsReal: "Ejecutadas"
+            }
+        };
+
+        let currentLang = 'pt';
+        let valueFormat = 'num';
+        window.sstData = [];
+        let viewMode = 'mensal';
+        let charts = {};
+
+        window.changeLanguage = function(lang) {
+            currentLang = lang;
+            const t = translations[lang];
+            document.getElementById('txtSubHeader').innerText = t.subHeader;
+            document.getElementById('btnDbText').innerText = t.dbText;
+            document.getElementById('modeMensal').innerText = t.modeMensal;
+            document.getElementById('modeAcumulado').innerText = t.modeAcumulado;
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if(t[key]) el.innerText = t[key];
+            });
+            initApp();
+        }
+
+        window.setValueFormat = function(fmt) {
+            valueFormat = fmt;
+            document.getElementById('fmtNum').className = fmt === 'num' ? 'px-2.5 py-1.5 rounded-lg font-bold transition bg-lpaGreen text-slate-950' : 'px-2.5 py-1.5 rounded-lg font-bold transition text-slate-300 hover:text-white';
+            document.getElementById('fmtPerc').className = fmt === 'perc' ? 'px-2.5 py-1.5 rounded-lg font-bold transition bg-lpaGreen text-slate-950' : 'px-2.5 py-1.5 rounded-lg font-bold transition text-slate-300 hover:text-white';
+            initApp();
+        }
+
+        window.setViewMode = function(mode) {
+            viewMode = mode;
+            document.getElementById('modeMensal').className = mode === 'mensal' ? 'px-3 py-1.5 rounded-lg font-bold transition bg-lpaGreen text-slate-950' : 'px-3 py-1.5 rounded-lg font-bold transition text-slate-300 hover:text-white';
+            document.getElementById('modeAcumulado').className = mode === 'acumulado' ? 'px-3 py-1.5 rounded-lg font-bold transition bg-lpaGreen text-slate-950' : 'px-3 py-1.5 rounded-lg font-bold transition text-slate-300 hover:text-white';
+            document.getElementById('badgeMode1').innerText = mode === 'mensal' ? 'Modo: Mensal' : 'Modo: Acumulado (YTD)';
+            initApp();
+        }
+
+        async function carregarDadosDoFirebase() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "sst_dados"));
+                window.sstData = [];
+                querySnapshot.forEach((docSnap) => {
+                    window.sstData.push({ firebaseId: docSnap.id, ...docSnap.data() });
+                });
+
+                if (window.sstData.length === 0) {
+                    const defaultData = [
+                        { ano: "2026", mes: 1, hht: 150000, acidentesAfast: 1, acidentesSemAfast: 2, diasPerdidos: 15, planosAbertos: 4, planosVencidos: 1, corpoLabel: "Mãos", corpoQtd: 5, lesaoLabel: "Corte", lesaoQtd: 6, setorLabel: "Produção", setorQtd: 12, brigApt: 88, nr10: 95, nr12: 90, nr35: 96, inspPlan: 40, inspReal: 38, ddsPart: 94, treinoPlan: 120, treinoReal: 135 },
+                        { ano: "2025", mes: 1, hht: 145000, acidentesAfast: 2, acidentesSemAfast: 3, diasPerdidos: 20, planosAbertos: 5, planosVencidos: 2, corpoLabel: "Pernas", corpoQtd: 3, lesaoLabel: "Contusão", lesaoQtd: 4, setorLabel: "Manutenção", setorQtd: 8, brigApt: 85, nr10: 90, nr12: 88, nr35: 92, inspPlan: 38, inspReal: 35, ddsPart: 90, treinoPlan: 110, treinoReal: 110 }
+                    ];
+                    for(let item of defaultData) {
+                        await addDoc(collection(db, "sst_dados"), item);
+                    }
+                    return carregarDadosDoFirebase();
+                }
+            } catch (e) {
+                console.error("Erro ao carregar do Firebase:", e);
+            }
+            initApp();
+        }
+
+        window.clearAllData = async function() {
+            if(confirm('Tem certeza que deseja apagar TODOS os dados do sistema na nuvem?')) {
+                try {
+                    const querySnapshot = await getDocs(collection(db, "sst_dados"));
+                    for(let docSnap of querySnapshot.docs) {
+                        await deleteDoc(doc(db, "sst_dados", docSnap.id));
+                    }
+                    window.sstData = [];
+                    initApp();
+                    openDataModal();
+                } catch(e) {
+                    console.error("Erro ao limpar dados:", e);
+                }
+            }
+        }
+
+        let currentSlideNum = 1;
+        window.switchSlide = function(num) {
+            document.querySelectorAll('[id^="slideContent-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.slide-tab').forEach(el => el.classList.remove('active'));
+            
+            const targetSlide = document.getElementById('slideContent-' + num);
+            if(targetSlide) targetSlide.classList.remove('hidden');
+            
+            const targetTab = document.getElementById('btnSlide' + num);
+            if(targetTab) targetTab.classList.add('active');
+            
+            currentSlideNum = num;
+            document.getElementById('slideIndicator').innerText = `Slide ${num} de 10`;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            setTimeout(() => {
+                renderAllCharts();
+                if(num === 10) renderCommandCenter();
+            }, 80);
+        }
+
+        window.nextSlide = function() { if(currentSlideNum < 10) switchSlide(currentSlideNum + 1); else switchSlide(1); }
+        window.prevSlide = function() { if(currentSlideNum > 1) switchSlide(currentSlideNum - 1); else switchSlide(10); }
+
+        window.switchDbTab = function(tab) {
+            ['Geral', 'Anatomia', 'Brigada', 'Treino'].forEach(t => {
+                document.getElementById('dbView' + t).classList.add('hidden');
+                document.getElementById('dbTab' + t).className = 'db-tab px-4 py-2 rounded-xl text-xs transition cursor-pointer bg-lpaDark text-slate-300 whitespace-nowrap';
+            });
+            document.getElementById('dbView' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.remove('hidden');
+            document.getElementById('dbTab' + tab.charAt(0).toUpperCase() + tab.slice(1)).className = 'db-tab active px-4 py-2 rounded-xl text-xs transition cursor-pointer whitespace-nowrap';
+        }
+
+        window.openDataModal = function() {
+            const tbG = document.getElementById('modalTableBodyGeral');
+            const tbA = document.getElementById('modalTableBodyAnatomia');
+            const tbB = document.getElementById('modalTableBodyBrigada');
+            const tbT = document.getElementById('modalTableBodyTreino');
+            tbG.innerHTML = ''; tbA.innerHTML = ''; tbB.innerHTML = ''; tbT.innerHTML = '';
+
+            window.sstData.forEach((item, idx) => {
+                tbG.innerHTML += `<tr>
+                    <td class="p-2"><input type="text" value="${item.ano}" onchange="updateItemLocally(${idx}, 'ano', this.value)" class="bg-lpaDark border border-lpaBorder px-2 py-1 rounded w-16 text-white font-bold"></td>
+                    <td class="p-2"><input type="text" value="${item.mes || 1}" onchange="updateItemLocally(${idx}, 'mes', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.hht || 0}" onchange="updateItemLocally(${idx}, 'hht', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-24 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.acidentesAfast || 0}" onchange="updateItemLocally(${idx}, 'acidentesAfast', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.acidentesSemAfast || 0}" onchange="updateItemLocally(${idx}, 'acidentesSemAfast', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.diasPerdidos || 0}" onchange="updateItemLocally(${idx}, 'diasPerdidos', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.planosAbertos || 0}" onchange="updateItemLocally(${idx}, 'planosAbertos', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.planosVencidos || 0}" onchange="updateItemLocally(${idx}, 'planosVencidos', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2 text-center"><button onclick="deleteDataRow(${idx})" class="text-red-400 hover:text-red-300 p-1 font-bold cursor-pointer"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>`;
+
+                tbA.innerHTML += `<tr>
+                    <td class="p-2"><input type="text" value="${item.ano}" onchange="updateItemLocally(${idx}, 'ano', this.value)" class="bg-lpaDark border border-lpaBorder px-2 py-1 rounded w-16 text-white font-bold"></td>
+                    <td class="p-2"><input type="text" value="${item.mes || 1}" onchange="updateItemLocally(${idx}, 'mes', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.corpoLabel || ''}" onchange="updateItemLocally(${idx}, 'corpoLabel', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-28 text-white" placeholder="Ex: Mãos"></td>
+                    <td class="p-2"><input type="text" value="${item.corpoQtd || 0}" onchange="updateItemLocally(${idx}, 'corpoQtd', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.lesaoLabel || ''}" onchange="updateItemLocally(${idx}, 'lesaoLabel', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-28 text-white" placeholder="Ex: Corte"></td>
+                    <td class="p-2"><input type="text" value="${item.lesaoQtd || 0}" onchange="updateItemLocally(${idx}, 'lesaoQtd', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.setorLabel || ''}" onchange="updateItemLocally(${idx}, 'setorLabel', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-28 text-white" placeholder="Ex: Produção"></td>
+                    <td class="p-2"><input type="text" value="${item.setorQtd || 0}" onchange="updateItemLocally(${idx}, 'setorQtd', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2 text-center"><button onclick="deleteDataRow(${idx})" class="text-red-400 hover:text-red-300 p-1 font-bold cursor-pointer"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>`;
+
+                tbB.innerHTML += `<tr>
+                    <td class="p-2"><input type="text" value="${item.ano}" onchange="updateItemLocally(${idx}, 'ano', this.value)" class="bg-lpaDark border border-lpaBorder px-2 py-1 rounded w-16 text-white font-bold"></td>
+                    <td class="p-2"><input type="text" value="${item.mes || 1}" onchange="updateItemLocally(${idx}, 'mes', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.brigApt || 0}" onchange="updateItemLocally(${idx}, 'brigApt', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-20 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.nr10 || 0}" onchange="updateItemLocally(${idx}, 'nr10', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-20 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.nr12 || 0}" onchange="updateItemLocally(${idx}, 'nr12', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-20 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.nr35 || 0}" onchange="updateItemLocally(${idx}, 'nr35', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-20 text-white"></td>
+                    <td class="p-2 text-center"><button onclick="deleteDataRow(${idx})" class="text-red-400 hover:text-red-300 p-1 font-bold cursor-pointer"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>`;
+
+                tbT.innerHTML += `<tr>
+                    <td class="p-2"><input type="text" value="${item.ano}" onchange="updateItemLocally(${idx}, 'ano', this.value)" class="bg-lpaDark border border-lpaBorder px-2 py-1 rounded w-16 text-white font-bold"></td>
+                    <td class="p-2"><input type="text" value="${item.mes || 1}" onchange="updateItemLocally(${idx}, 'mes', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-16 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.inspPlan || 0}" onchange="updateItemLocally(${idx}, 'inspPlan', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-20 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.inspReal || 0}" onchange="updateItemLocally(${idx}, 'inspReal', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-20 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.ddsPart || 0}" onchange="updateItemLocally(${idx}, 'ddsPart', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-20 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.treinoPlan || 0}" onchange="updateItemLocally(${idx}, 'treinoPlan', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-20 text-white"></td>
+                    <td class="p-2"><input type="text" value="${item.treinoReal || 0}" onchange="updateItemLocally(${idx}, 'treinoReal', this.value)" class="bg-lpaDark border border-lpaBorder px-2.5 py-1 rounded w-20 text-white"></td>
+                    <td class="p-2 text-center"><button onclick="deleteDataRow(${idx})" class="text-red-400 hover:text-red-300 p-1 font-bold cursor-pointer"><i class="fa-solid fa-trash"></i></button></td>
+                </tr>`;
+            });
+
+            document.getElementById('dataModal').classList.remove('hidden');
+        }
+
+        window.closeDataModal = async function() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "sst_dados"));
+                for(let docSnap of querySnapshot.docs) {
+                    await deleteDoc(doc(db, "sst_dados", docSnap.id));
+                }
+                for(let item of window.sstData) {
+                    delete item.firebaseId;
+                    await addDoc(collection(db, "sst_dados"), item);
+                }
+            } catch(e) {
+                console.error("Erro ao salvar no Firebase:", e);
+            }
+            document.getElementById('dataModal').classList.add('hidden');
+            carregarDadosDoFirebase();
+        }
+        
+        window.updateItemLocally = function(idx, field, val) { 
+            const textFields = ['ano', 'corpoLabel', 'lesaoLabel', 'setorLabel'];
+            if(textFields.includes(field)) {
+                window.sstData[idx][field] = val;
+            } else {
+                window.sstData[idx][field] = val === '' ? 0 : Number(val);
+            }
+        }
+        
+        window.addNewDataRow = function() { 
+            let nextMonth = 1;
+            if(window.sstData.length > 0) {
+                let lastItem = window.sstData[window.sstData.length - 1];
+                nextMonth = Number(lastItem.mes || 1) + 1;
+                if(nextMonth > 12) nextMonth = 12;
+            }
+
+            window.sstData.push({ 
+                ano: "2026", mes: nextMonth, hht: 150000, acidentesAfast: 0, acidentesSemAfast: 0, diasPerdidos: 0, 
+                planosAbertos: 0, planosVencidos: 0, corpoLabel: "Geral", corpoQtd: 1, lesaoLabel: "Outros", lesaoQtd: 1, 
+                setorLabel: "Produção", setorQtd: 1, brigApt: 90, nr10: 95, nr12: 90, nr35: 95, inspPlan: 40, inspReal: 40, ddsPart: 95, treinoPlan: 100, treinoReal: 100 
+            }); 
+            openDataModal(); 
+        }
+        
+        window.deleteDataRow = function(idx) { 
+            window.sstData.splice(idx, 1); 
+            openDataModal(); 
+        }
+
+        function getProcessedData(year) {
+            let raw = window.sstData.filter(d => String(d.ano) === String(year)).sort((a,b) => Number(a.mes || 1) - Number(b.mes || 1));
+            if(viewMode === 'acumulado') {
+                let accAfast = 0, accSemAfast = 0, accDias = 0, accPlan = 0, accVenc = 0, accInspP = 0, accInspR = 0, accTreinoP = 0, accTreinoR = 0;
+                return raw.map(d => {
+                    accAfast += Number(d.acidentesAfast || 0);
+                    accSemAfast += Number(d.acidentesSemAfast || 0);
+                    accDias += Number(d.diasPerdidos || 0);
+                    accPlan += Number(d.planosAbertos || 0);
+                    accVenc += Number(d.planosVencidos || 0);
+                    accInspP += Number(d.inspPlan || 0);
+                    accInspR += Number(d.inspReal || 0);
+                    accTreinoP += Number(d.treinoPlan || 0);
+                    accTreinoR += Number(d.treinoReal || 0);
+                    return { ...d, acidentesAfast: accAfast, acidentesSemAfast: accSemAfast, diasPerdidos: accDias, planosAbertos: accPlan, planosVencidos: accVenc, inspPlan: accInspP, inspReal: accInspR, treinoPlan: accTreinoP, treinoReal: accTreinoR };
+                });
+            }
+            return raw;
+        }
+
+        function initApp() {
+            const d26 = window.sstData.filter(d => String(d.ano) === "2026");
+            const totAfast26 = d26.reduce((a,c)=>a+Number(c.acidentesAfast || 0),0);
+            const totDias26 = d26.reduce((a,c)=>a+Number(c.diasPerdidos || 0),0);
+            const iag26 = totAfast26 > 0 ? (totDias26 / totAfast26).toFixed(2) : "0.00";
+            const diasSem = d26.length > 0 ? (120 - totAfast26 * 15) : 0;
+            const avgNR = d26.length > 0 ? (d26.reduce((a,c)=>a+Number(c.nr12 || 0),0)/d26.length).toFixed(1) : 0;
+            const avgBrig = d26.length > 0 ? (d26.reduce((a,c)=>a+Number(c.brigApt || 0),0)/d26.length).toFixed(0) : 0;
+
+            document.getElementById('kpiDias').innerText = (diasSem > 0 ? diasSem : 0) + " dias";
+            document.getElementById('kpiIAG').innerText = iag26;
+            document.getElementById('kpiNRs').innerText = window.sstData.length > 0 ? avgNR + "%" : "0%";
+            document.getElementById('kpiCipa').innerText = window.sstData.length > 0 ? avgBrig + "%" : "0%";
+
+            renderAllCharts();
+        }
+
+        function getFormatter() {
+            return (val, ctx) => {
+                if (val === 0 || isNaN(val)) return '';
+                if (valueFormat === 'perc') {
+                    const datasetArr = ctx.chart.data.datasets[ctx.datasetIndex].data;
+                    const total = datasetArr.reduce((a, b) => a + (Number(b) || 0), 0);
+                    return total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
+                }
+                return val;
+            };
+        }
+
+        function renderAllCharts() {
+            const t = translations[currentLang];
+            const mesNames = t.meses;
+            const data25 = getProcessedData("2025");
+            const data26 = getProcessedData("2026");
+
+            let labels = mesNames;
+
+            function mapMonths(rawData) {
+                let mapped = new Array(12).fill(0).map(() => ({ acidentesAfast: 0, acidentesSemAfast: 0, diasPerdidos: 0, hht: 0, planosAbertos: 0, planosVencidos: 0, nr10: 0, nr12: 0, nr35: 0, inspPlan: 0, inspReal: 0, treinoPlan: 0, treinoReal: 0 }));
+                rawData.forEach(d => {
+                    let mIdx = Number(d.mes || 1) - 1;
+                    if(mIdx >= 0 && mIdx < 12) {
+                        mapped[mIdx] = d;
+                    }
+                });
+                return mapped;
+            }
+
+            const m25 = mapMonths(data25);
+            const m26 = mapMonths(data26);
+
+            const af25 = m25.map(d => Number(d.acidentesAfast || 0));
+            const af26 = m26.map(d => Number(d.acidentesAfast || 0));
+
+            const tf25 = m25.map(d => d.hht > 0 ? Number(((d.acidentesAfast * 1000000) / d.hht).toFixed(2)) : 0);
+            const tf26 = m26.map(d => d.hht > 0 ? Number(((d.acidentesAfast * 1000000) / d.hht).toFixed(2)) : 0);
+            const tg25 = m25.map(d => d.hht > 0 ? Number(((d.diasPerdidos * 1000000) / d.hht).toFixed(2)) : 0);
+            const tg26 = m26.map(d => d.hht > 0 ? Number(((d.diasPerdidos * 1000000) / d.hht).toFixed(2)) : 0);
+
+            let corpoMap = {}, lesaoMap = {}, setorMap = {};
+            data26.forEach(d => {
+                if(d.corpoLabel) corpoMap[d.corpoLabel] = (corpoMap[d.corpoLabel] || 0) + Number(d.corpoQtd || 0);
+                if(d.lesaoLabel) lesaoMap[d.lesaoLabel] = (lesaoMap[d.lesaoLabel] || 0) + Number(d.lesaoQtd || 0);
+                if(d.setorLabel) setorMap[d.setorLabel] = (setorMap[d.setorLabel] || 0) + Number(d.setorQtd || 0);
+            });
+
+            const corpoLabels = Object.keys(corpoMap).length > 0 ? Object.keys(corpoMap) : ['Nenhum'];
+            const corpoValues = Object.keys(corpoMap).length > 0 ? Object.values(corpoMap) : [0];
+            const lesaoLabels = Object.keys(lesaoMap).length > 0 ? Object.keys(lesaoMap) : ['Nenhum'];
+            const lesaoValues = Object.keys(lesaoMap).length > 0 ? Object.values(lesaoMap) : [0];
+            const setorLabels = Object.keys(setorMap).length > 0 ? Object.keys(setorMap) : ['Nenhum'];
+            const setorValues = Object.keys(setorMap).length > 0 ? Object.values(setorMap) : [0];
+
+            const totPlanos = data26.reduce((a,c)=>a+Number(c.planosAbertos || 0), 0);
+            const totVencidos = data26.reduce((a,c)=>a+Number(c.planosVencidos || 0), 0);
+            const avgBrigApt = data26.length > 0 ? Number(data26[data26.length - 1].brigApt || 90) : 90;
+            const avgDDS = data26.length > 0 ? (data26.reduce((a,c)=>a+Number(c.ddsPart || 0),0)/data26.length).toFixed(0) : 0;
+
+            for(let k in charts) { if(charts[k]) charts[k].destroy(); }
+
+            const baseOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: 25, right: 15 } },
+                plugins: {
+                    datalabels: { display: true, color: '#f8fafc', font: { weight: 'bold', size: 10 }, anchor: 'end', align: 'top', formatter: (v, ctx) => getFormatter()(v, ctx) },
+                    legend: { position: 'bottom' }
+                }
+            };
+
+            const el1 = document.getElementById('chartSumarioComp');
+            if(el1) charts.sum = new Chart(el1, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: t.ds25, data: af25, backgroundColor: '#0f766e', borderRadius: 6, barThickness: 12 }, { label: t.ds26, data: af26, backgroundColor: '#22c55e', borderRadius: 6, barThickness: 12 }] },
+                options: baseOptions
+            });
+
+            const el2 = document.getElementById('chartFreq25vs26');
+            if(el2) charts.freq = new Chart(el2, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ type: 'line', label: t.dsTrend, data: tf26, borderColor: '#ef4444', borderWidth: 3, tension: 0.3, datalabels: { display: false } }, { label: 'TF 2025', data: tf25, backgroundColor: '#0f766e', borderRadius: 6, barThickness: 10 }, { label: 'TF 2026', data: tf26, backgroundColor: '#22c55e', borderRadius: 6, barThickness: 10 }] },
+                options: baseOptions
+            });
+
+            const el3 = document.getElementById('chartGrav25vs26');
+            if(el3) charts.grav = new Chart(el3, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ type: 'line', label: t.dsTrend, data: tg26.map(v=>v/10), borderColor: '#f59e0b', borderWidth: 3, tension: 0.3, datalabels: { display: false } }, { label: 'TG 2025', data: tg25.map(v=>v/10), backgroundColor: '#1d4ed8', borderRadius: 6, barThickness: 10 }, { label: 'TG 2026', data: tg26.map(v=>v/10), backgroundColor: '#60a5fa', borderRadius: 6, barThickness: 10 }] },
+                options: baseOptions
+            });
+
+            const el4 = document.getElementById('chartPartesCorpo');
+            if(el4) charts.corpo = new Chart(el4, {
+                type: 'bar',
+                data: { labels: corpoLabels, datasets: [{ label: t.dsOcc, data: corpoValues, backgroundColor: '#22c55e', borderRadius: 8, barThickness: 22 }] },
+                options: { ...baseOptions, plugins: { ...baseOptions.plugins, legend: { display: false } } }
+            });
+
+            const el5 = document.getElementById('chartTiposLesao');
+            if(el5) charts.lesao = new Chart(el5, {
+                type: 'pie',
+                data: { labels: lesaoLabels, datasets: [{ data: lesaoValues, backgroundColor: ['#ef4444', '#f59e0b', '#38bdf8', '#a855f7', '#22c55e'], borderWidth: 2, borderColor: '#0b2418' }] },
+                options: baseOptions
+            });
+
+            const el6 = document.getElementById('chartPlanosAcao');
+            if(el6) charts.planos = new Chart(el6, {
+                type: 'bar',
+                data: { labels: ['Concluídos', 'Em Aberto', 'Vencidos'], datasets: [{ label: t.dsPlans, data: [totPlanos > 0 ? totPlanos*2 : 0, totPlanos, totVencidos], backgroundColor: ['#22c55e', '#3b82f6', '#ef4444'], borderRadius: 8, barThickness: 28 }] },
+                options: { ...baseOptions, plugins: { ...baseOptions.plugins, legend: { display: false } } }
+            });
+
+            const el7 = document.getElementById('chartSetoresDesvio');
+            if(el7) charts.setores = new Chart(el7, {
+                type: 'bar',
+                data: { labels: setorLabels, datasets: [{ label: t.dsDev, data: setorValues, backgroundColor: '#f59e0b', borderRadius: 8, barThickness: 18 }] },
+                options: { ...baseOptions, indexAxis: 'y', plugins: { ...baseOptions.plugins, legend: { display: false } } }
+            });
+
+            const el8 = document.getElementById('chartCipaEvolucao');
+            if(el8) charts.cipa = new Chart(el8, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: t.dsProp, data: m26.map(d=>Number(d.planosAbertos || 0)), backgroundColor: '#0f766e', borderRadius: 6, barThickness: 12 }, { label: t.dsImp, data: m26.map(d=>Number(d.planosVencidos || 0)), backgroundColor: '#4ade80', borderRadius: 6, barThickness: 12 }] },
+                options: baseOptions
+            });
+
+            const el9 = document.getElementById('chartBrigadaProntidao');
+            if(el9) {
+                const pendBrig = Math.max(0, 100 - avgBrigApt);
+                charts.brig = new Chart(el9, {
+                    type: 'doughnut',
+                    data: { labels: [t.dsApt, t.dsPend, t.dsAfast], datasets: [{ data: [avgBrigApt, pendBrig, 0], backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'], borderWidth: 2, borderColor: '#0b2418' }] },
+                    options: baseOptions
+                });
+            }
+
+            const el10 = document.getElementById('chartNRConformidade');
+            if(el10) charts.nrConf = new Chart(el10, {
+                type: 'line',
+                data: { labels: labels, datasets: [{ label: 'NR-10', data: m26.map(d=>Number(d.nr10 || 0)), borderColor: '#3b82f6', tension: 0.3, borderWidth: 3 }, { label: 'NR-12', data: m26.map(d=>Number(d.nr12 || 0)), borderColor: '#22c55e', tension: 0.3, borderWidth: 3 }, { label: 'NR-35', data: m26.map(d=>Number(d.nr35 || 0)), borderColor: '#a855f7', tension: 0.3, borderWidth: 3 }] },
+                options: baseOptions
+            });
+
+            const el11 = document.getElementById('chartNR12Maquinas');
+            if(el11) charts.nr12maq = new Chart(el11, {
+                type: 'bar',
+                data: { labels: ['Sopradoras', 'Envasadoras', 'Paletizadores', 'Esteiras', 'Caldeiras'], datasets: [{ label: '%', data: m26.map(d=>Number(d.nr12 || 0)), backgroundColor: '#3b82f6', borderRadius: 8, barThickness: 22 }] },
+                options: { ...baseOptions, plugins: { ...baseOptions.plugins, legend: { display: false } } }
+            });
+
+            const el12 = document.getElementById('chartNearMiss');
+            if(el12) charts.nearMiss = new Chart(el12, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'Near Miss', data: m26.map(d=>(Number(d.acidentesAfast || 0) + Number(d.acidentesSemAfast || 0))*2), backgroundColor: '#10b981', borderRadius: 6, barThickness: 14 }] },
+                options: { ...baseOptions, plugins: { ...baseOptions.plugins, legend: { display: false } } }
+            });
+
+            const el13 = document.getElementById('chartAtosCondicoes');
+            if(el13) charts.atosCondicoes = new Chart(el13, {
+                type: 'doughnut',
+                data: { labels: ['Atos', 'Condições'], datasets: [{ data: [totPlanos*3, totPlanos*2], backgroundColor: ['#3b82f6', '#f59e0b'], borderWidth: 2, borderColor: '#0b2418' }] },
+                options: baseOptions
+            });
+
+            const el14 = document.getElementById('chartInspecoesPR');
+            if(el14) charts.inspPR = new Chart(el14, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: t.dsPlan, data: m26.map(d=>Number(d.inspPlan || 0)), backgroundColor: '#0f766e', borderRadius: 6, barThickness: 12 }, { label: t.dsReal, data: m26.map(d=>Number(d.inspReal || 0)), backgroundColor: '#22c55e', borderRadius: 6, barThickness: 12 }] },
+                options: baseOptions
+            });
+
+            const el15 = document.getElementById('chartDDSsetor');
+            if(el15) charts.ddsSetor = new Chart(el15, {
+                type: 'bar',
+                data: { labels: ['Produção', 'Manutenção', 'Expedição', 'Qualidade', 'Higienização'], datasets: [{ label: '%', data: [Number(avgDDS), Number(avgDDS), Number(avgDDS), Number(avgDDS), Number(avgDDS)], backgroundColor: '#14b8a6', borderRadius: 8, barThickness: 22 }] },
+                options: { ...baseOptions, plugins: { ...baseOptions.plugins, legend: { display: false } } }
+            });
+
+            const el16 = document.getElementById('chartTreinamentos');
+            if(el16) charts.treinamentos = new Chart(el16, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: t.dsPlan, data: m26.map(d=>Number(d.treinoPlan || 0)), backgroundColor: '#312e81', borderRadius: 6, barThickness: 12 }, { label: t.dsReal, data: m26.map(d=>Number(d.treinoReal || 0)), backgroundColor: '#6366f1', borderRadius: 6, barThickness: 12 }] },
+                options: baseOptions
+            });
+
+            const el17 = document.getElementById('chartTemasTreino');
+            if(el17) charts.temasTreino = new Chart(el17, {
+                type: 'pie',
+                data: { labels: ['Integração', 'Reciclagem', 'Alimentos', 'Equipamentos'], datasets: [{ data: window.sstData.length > 0 ? [35, 25, 20, 20] : [0,0,0,0], backgroundColor: ['#6366f1', '#3b82f6', '#10b981', '#f59e0b'], borderWidth: 2, borderColor: '#0b2418' }] },
+                options: baseOptions
+            });
+
+            renderCommandCenter();
+        }
+
+        window.renderCommandCenter = function() {
+            const t = translations[currentLang];
+            const mesNames = t.meses;
+            const data25 = getProcessedData("2025");
+            const data26 = getProcessedData("2026");
+
+            const labels = mesNames;
+            function mapMonths(rawData) {
+                let mapped = new Array(12).fill(0).map(() => ({ acidentesAfast: 0, acidentesSemAfast: 0, diasPerdidos: 0, hht: 0, planosAbertos: 0, planosVencidos: 0, nr10: 0, nr12: 0, nr35: 0, inspPlan: 0, inspReal: 0, treinoPlan: 0, treinoReal: 0 }));
+                rawData.forEach(d => {
+                    let mIdx = Number(d.mes || 1) - 1;
+                    if(mIdx >= 0 && mIdx < 12) mapped[mIdx] = d;
+                });
+                return mapped;
+            }
+
+            const m25 = mapMonths(data25);
+            const m26 = mapMonths(data26);
+
+            const tf26 = m26.map(d => d.hht > 0 ? Number(((d.acidentesAfast * 1000000) / d.hht).toFixed(2)) : 0);
+            const tg26 = m26.map(d => d.hht > 0 ? Number(((d.diasPerdidos * 1000000) / d.hht).toFixed(2)) : 0);
+            
+            // Opções idênticas aos slides individuais (com números em cima e sem "undefined")
+            const ccOpts = {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: 20, right: 10 } },
+                plugins: {
+                    datalabels: { display: true, color: '#f8fafc', font: { weight: 'bold', size: 9 }, anchor: 'end', align: 'top', formatter: (v, ctx) => getFormatter()(v, ctx) },
+                    legend: { position: 'bottom' }
+                }
+            };
+
+            for (let i = 1; i <= 16; i++) {
+                const chk = document.getElementById('chk' + i);
+                const box = document.getElementById('ccCard_' + i);
+                if (chk && box) box.style.display = chk.checked ? 'block' : 'none';
+            }
+
+            for(let i=1; i<=16; i++) {
+                const cv = document.getElementById('ccCanvas' + i);
+                if(charts['cc' + i]) { charts['cc' + i].destroy(); }
+                if(!cv) continue;
+
+                if(i === 1) charts.cc1 = new Chart(cv, { type: 'bar', data: { labels: labels, datasets: [{ label: t.ds25, data: m25.map(d=>d.acidentesAfast), backgroundColor: '#0f766e', borderRadius: 4 }, { label: t.ds26, data: m26.map(d=>d.acidentesAfast), backgroundColor: '#22c55e', borderRadius: 4 }] }, options: ccOpts });
+                if(i === 2) charts.cc2 = new Chart(cv, { type: 'bar', data: { labels: labels, datasets: [{ type: 'line', label: t.dsTrend, data: tf26, borderColor: '#ef4444', borderWidth: 2, datalabels: { display: false } }, { label: 'TF 2026', data: tf26, backgroundColor: '#22c55e', borderRadius: 4 }] }, options: ccOpts });
+                if(i === 3) charts.cc3 = new Chart(cv, { type: 'bar', data: { labels: labels, datasets: [{ type: 'line', label: t.dsTrend, data: tg26.map(v=>v/10), borderColor: '#f59e0b', borderWidth: 2, datalabels: { display: false } }, { label: 'TG 2026', data: tg26, backgroundColor: '#60a5fa', borderRadius: 4 }] }, options: ccOpts });
+                
+                let corpoMap = {}, lesaoMap = {}, setorMap = {};
+                data26.forEach(d => {
+                    if(d.corpoLabel) corpoMap[d.corpoLabel] = (corpoMap[d.corpoLabel] || 0) + Number(d.corpoQtd || 0);
+                    if(d.lesaoLabel) lesaoMap[d.lesaoLabel] = (lesaoMap[d.lesaoLabel] || 0) + Number(d.lesaoQtd || 0);
+                    if(d.setorLabel) setorMap[d.setorLabel] = (setorMap[d.setorLabel] || 0) + Number(d.setorQtd || 0);
+                });
+
+                if(i === 4) charts.cc4 = new Chart(cv, { type: 'bar', data: { labels: Object.keys(corpoMap).length>0?Object.keys(corpoMap):['Nenhum'], datasets: [{ label: t.dsOcc, data: Object.keys(corpoMap).length>0?Object.values(corpoMap):[0], backgroundColor: '#22c55e', borderRadius: 4 }] }, options: { ...ccOpts, plugins: { ...ccOpts.plugins, legend: { display: false } } } });
+                if(i === 5) charts.cc5 = new Chart(cv, { type: 'pie', data: { labels: Object.keys(lesaoMap).length>0?Object.keys(lesaoMap):['Nenhum'], datasets: [{ data: Object.keys(lesaoMap).length>0?Object.values(lesaoMap):[0], backgroundColor: ['#ef4444','#f59e0b','#38bdf8'] }] }, options: ccOpts });
+                if(i === 6) charts.cc6 = new Chart(cv, { type: 'bar', data: { labels: ['Abertos', 'Vencidos'], datasets: [{ label: t.dsPlans, data: [data26.reduce((a,c)=>a+c.planosAbertos,0), data26.reduce((a,c)=>a+c.planosVencidos,0)], backgroundColor: ['#3b82f6','#ef4444'], borderRadius: 4 }] }, options: { ...ccOpts, plugins: { ...ccOpts.plugins, legend: { display: false } } } });
+                if(i === 7) charts.cc7 = new Chart(cv, { type: 'bar', data: { labels: Object.keys(setorMap).length>0?Object.keys(setorMap):['Nenhum'], datasets: [{ label: t.dsDev, data: Object.keys(setorMap).length>0?Object.values(setorMap):[0], backgroundColor: '#f59e0b', borderRadius: 4 }] }, options: { ...ccOpts, indexAxis: 'y', plugins: { ...ccOpts.plugins, legend: { display: false } } } });
+                if(i === 8) charts.cc8 = new Chart(cv, { type: 'bar', data: { labels: labels, datasets: [{ label: t.dsProp, data: m26.map(d=>d.planosAbertos), backgroundColor: '#0f766e', borderRadius: 4 }, { label: t.dsImp, data: m26.map(d=>d.planosVencidos), backgroundColor: '#4ade80', borderRadius: 4 }] }, options: ccOpts });
+                if(i === 9) charts.cc9 = new Chart(cv, { type: 'doughnut', data: { labels: [t.dsApt, t.dsPend], datasets: [{ data: data26.length>0?[data26[data26.length-1].brigApt, 100-data26[data26.length-1].brigApt]:[90,10], backgroundColor: ['#22c55e','#f59e0b'] }] }, options: ccOpts });
+                if(i === 10) charts.cc10 = new Chart(cv, { type: 'line', data: { labels: labels, datasets: [{ label: 'NR-12', data: m26.map(d=>d.nr12), borderColor: '#22c55e' }] }, options: ccOpts });
+                if(i === 11) charts.cc11 = new Chart(cv, { type: 'bar', data: { labels: ['Sopr.', 'Envas.', 'Palet.'], datasets: [{ label: '%', data: [98, 92, 85], backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: { ...ccOpts, plugins: { ...ccOpts.plugins, legend: { display: false } } } });
+                if(i === 12) charts.cc12 = new Chart(cv, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Near Miss', data: m26.map(d=>d.acidentesAfast*3), backgroundColor: '#10b981', borderRadius: 4 }] }, options: { ...ccOpts, plugins: { ...ccOpts.plugins, legend: { display: false } } } });
+                if(i === 13) charts.cc13 = new Chart(cv, { type: 'doughnut', data: { labels: ['Atos', 'Condições'], datasets: [{ data: [58, 42], backgroundColor: ['#3b82f6','#f59e0b'] }] }, options: ccOpts });
+                if(i === 14) charts.cc14 = new Chart(cv, { type: 'bar', data: { labels: labels, datasets: [{ label: t.dsPlan, data: m26.map(d=>d.inspPlan), backgroundColor: '#0f766e', borderRadius: 4 }, { label: t.dsReal, data: m26.map(d=>d.inspReal), backgroundColor: '#22c55e', borderRadius: 4 }] }, options: ccOpts });
+                if(i === 15) charts.cc15 = new Chart(cv, { type: 'bar', data: { labels: ['Prod.', 'Maint.', 'Ship.'], datasets: [{ label: '%', data: [94, 88, 91], backgroundColor: '#14b8a6', borderRadius: 4 }] }, options: { ...ccOpts, plugins: { ...ccOpts.plugins, legend: { display: false } } } });
+                if(i === 16) charts.cc16 = new Chart(cv, { type: 'bar', data: { labels: labels, datasets: [{ label: t.dsPlan, data: m26.map(d=>d.treinoPlan), backgroundColor: '#312e81', borderRadius: 4 }, { label: t.dsReal, data: m26.map(d=>d.treinoReal), backgroundColor: '#6366f1', borderRadius: 4 }] }, options: ccOpts });
+            }
+        }
+
+        window.exportChartHQ = function(canvasId, fileName) {
+            const canvas = document.getElementById(canvasId);
+            if(!canvas) return;
+
+            const chartInstance = Chart.getChart(canvas);
+            if(!chartInstance) return;
+
+            const originalDPR = chartInstance.options.devicePixelRatio;
+            chartInstance.options.devicePixelRatio = 4;
+            chartInstance.resize();
+
+            setTimeout(() => {
+                const link = document.createElement('a');
+                link.download = `LPA_${fileName}_${viewMode}_HD.png`;
+                link.href = canvas.toDataURL('image/png', 1.0);
+                link.click();
+
+                chartInstance.options.devicePixelRatio = originalDPR;
+                chartInstance.resize();
+            }, 100);
+        }
+
+        window.downloadAllCommandCenterCharts = async function() {
+            if(!confirm('Deseja baixar todos os gráficos do Command Center em alta resolução?')) return;
+            const canvasIds = [
+                'ccCanvas1', 'ccCanvas2', 'ccCanvas3', 'ccCanvas4', 
+                'ccCanvas5', 'ccCanvas6', 'ccCanvas7', 'ccCanvas8', 
+                'ccCanvas9', 'ccCanvas10', 'ccCanvas11', 'ccCanvas12', 
+                'ccCanvas13', 'ccCanvas14', 'ccCanvas15', 'ccCanvas16'
+            ];
+            for(let i = 0; i < canvasIds.length; i++) {
+                const box = document.getElementById('ccCard_' + (i+1));
+                if(box && box.style.display !== 'none') {
+                    window.exportChartHQ(canvasIds[i], `Command_Center_Grafico_${i+1}`);
+                    await new Promise(r => setTimeout(r, 600));
+                }
+            }
+            alert('Todos os gráficos visíveis foram baixados com sucesso!');
+        }
+
+        window.onload = function() { 
+            carregarDadosDoFirebase();
+        };
+    </script>
+</body>
+</html>
