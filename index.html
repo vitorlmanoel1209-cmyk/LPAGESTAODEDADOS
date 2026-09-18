@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPA Segura • Gestão de Segurança do Trabalho</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        lpaDark: '#05130d',
+                        lpaCard: '#0b2418',
+                        lpaBorder: '#164e32',
+                        lpaGreen: '#15803d',
+                        lpaAccent: '#22c55e',
+                        lpaLight: '#4ade80'
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js & DataLabels plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #05130d; color: #f0fdf4; }
+        .glass-panel { background: rgba(11, 36, 24, 0.95); backdrop-filter: blur(16px); border: 1px solid rgba(22, 78, 50, 0.8); box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7); }
+        .slide-tab.active { border-bottom: 4px solid #22c55e; color: #4ade80; font-weight: 800; background: rgba(21, 128, 61, 0.25); }
+        .db-tab.active { background: #15803d; color: #ffffff; font-weight: bold; }
+        [contenteditable="true"]:hover { outline: 1px dashed #22c55e; border-radius: 4px; cursor: text; background: rgba(34, 197, 94, 0.03); }
+        [contenteditable="true"]:focus { outline: 2px solid #22c55e; border-radius: 4px; background: rgba(34, 197, 94, 0.08); }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #05130d; }
+        ::-webkit-scrollbar-thumb { background: #164e32; border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-lpaGreen selection:text-white">
+
+    <!-- Header -->
+    <header class="bg-lpaDark/95 border-b border-lpaBorder sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-br from-lpaGreen to-lpaAccent p-2.5 rounded-xl shadow-lg flex items-center justify-center text-slate-950 font-black text-base">
+                    LPA
+                </div>
+                <div>
+                    <h1 class="font-black text-lg tracking-wider text-white" contenteditable="true">LATICÍNIOS PORTO ALEGRE</h1>
+                    <p id="txtSubHeader" class="text-xs font-bold text-lpaLight tracking-widest uppercase" contenteditable="true">Indicadores de Segurança</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <div class="bg-lpaDark border border-lpaBorder p-1 rounded-xl flex items-center text-xs">
+                    <button onclick="setViewMode('mensal')" id="modeMensal" class="px-3 py-1.5 rounded-lg font-bold transition bg-lpaGreen text-slate-950">Mensal</button>
+                    <button onclick="setViewMode('acumulado')" id="modeAcumulado" class="px-3 py-1.5 rounded-lg font-bold transition text-slate-300 hover:text-white">Acumulado (YTD)</button>
+                </div>
+
+                <button onclick="openDataModal()" class="bg-lpaCard hover:bg-lpaBorder text-white font-bold px-3 py-2 rounded-xl text-xs transition border border-lpaBorder flex items-center space-x-1.5 cursor-pointer shadow-md">
+                    <i class="fa-solid fa-database text-lpaLight"></i>
+                    <span>Banco de Dados (Fichas)</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navegação por Slides (8 Abas) -->
+    <div class="bg-lpaDark border-b border-lpaBorder overflow-x-auto shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 py-1">
+            <button onclick="switchSlide(1)" id="btnSlide1" class="slide-tab active py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-300"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-lpaLight font-bold">1</span><span>Indicadores Gerais</span></button>
+            <button onclick="switchSlide(2)" id="btnSlide2" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">2</span><span>Freq. & Grav.</span></button>
+            <button onclick="switchSlide(3)" id="btnSlide3" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">3</span><span>Anatomia dos Acidentes</span></button>
+            <button onclick="switchSlide(4)" id="btnSlide4" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">4</span><span>Setores & Desvios</span></button>
+            <button onclick="switchSlide(5)" id="btnSlide5" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">5</span><span>Quase Acidente</span></button>
+            <button onclick="switchSlide(6)" id="btnSlide6" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">6</span><span>Inspeções de Segurança</span></button>
+            <button onclick="switchSlide(7)" id="btnSlide7" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white"><span class="bg-lpaBorder w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-slate-300 font-bold">7</span><span>Temas de Treinamento</span></button>
+            <button onclick="switchSlide(8)" id="btnSlide8" class="slide-tab py-3 px-3.5 rounded-t-xl text-xs font-semibold transition flex items-center space-x-1.5 whitespace-nowrap text-lpaLight font-bold"><span class="bg-lpaGreen w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-white font-black">8</span><span>Diálogo de Segurança (DDS)</span></button>
+        </div>
+    </div>
+
+    <!-- Workspace Principal -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- SLIDE 1 -->
+        <div id="slideContent-1" class="space-y-8">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4 flex justify-between items-center flex-wrap gap-2">
+                    <h2 class="text-3xl font-black text-white">Indicadores Gerais</h2>
+                    <div class="flex items-center space-x-3 flex-wrap gap-2">
+                        <button onclick="toggleChartPct('sum')" id="btnPct_sum" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer font-bold"><i class="fa-solid fa-percent mr-1"></i>%</button>
+                        <select onchange="changeChartPalette('sum', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="emerald">🎨 Cores: Esmeralda Luxo</option>
+                            <option value="solid">🎨 Cor Única Corporativa</option>
+                            <option value="mint">🎨 Cores: Menta Suave</option>
+                            <option value="teal">🎨 Cores: Teal Técnico</option>
+                        </select>
+                        <select onchange="changeChartStyle('sum', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="bar">1. Colunas Verticais</option>
+                            <option value="line">2. Linha de Tendência</option>
+                            <option value="horizontalBar">3. Barras Horizontais</option>
+                            <option value="doughnut">4. Rosca Executiva</option>
+                            <option value="pie">5. Pizza Clássica</option>
+                        </select>
+                        <span id="badgeMode1" class="text-xs font-black uppercase tracking-widest text-lpaLight bg-lpaDark px-3 py-1 rounded border border-lpaBorder">Modo: Mensal</span>
+                    </div>
+                </div>
+                <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder pt-4">
+                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-lg">Evolução Mensal de Acidentes</h3><button onclick="exportChartHQ('chartSumarioComp', 'Evolucao_Acidentes')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer"><i class="fa-solid fa-download mr-1"></i>Baixar PNG</button></div>
+                    <div class="h-[420px] relative"><canvas id="chartSumarioComp"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 -->
+        <div id="slideContent-2" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4 flex justify-between items-center flex-wrap gap-2">
+                    <h2 class="text-3xl font-black text-white">Taxas de Frequência e Gravidade</h2>
+                    <div class="flex items-center space-x-2 flex-wrap gap-2">
+                        <select onchange="changeChartPalette('freq', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="emerald">🎨 Cores: Esmeralda Luxo</option>
+                            <option value="solid">🎨 Cor Única Corporativa</option>
+                            <option value="mint">🎨 Cores: Menta Suave</option>
+                            <option value="teal">🎨 Cores: Teal Técnico</option>
+                        </select>
+                        <select onchange="changeChartStyle('freq', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="bar">1. Colunas Verticais</option>
+                            <option value="line">2. Linha de Tendência</option>
+                            <option value="horizontalBar">3. Barras Horizontais</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base">Taxa de Frequência</h3><button onclick="exportChartHQ('chartFreq25vs26', 'Taxa_Frequencia')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button></div><div class="h-80 relative"><canvas id="chartFreq25vs26"></canvas></div></div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base">Taxa de Gravidade</h3><button onclick="exportChartHQ('chartGrav25vs26', 'Taxa_Gravidade')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button></div><div class="h-80 relative"><canvas id="chartGrav25vs26"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3 -->
+        <div id="slideContent-3" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4 flex justify-between items-center flex-wrap gap-2">
+                    <h2 class="text-3xl font-black text-white">Anatomia dos Acidentes</h2>
+                    <div class="flex items-center space-x-2 flex-wrap gap-2">
+                        <button onclick="toggleChartPct('corpo')" id="btnPct_corpo" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer font-bold"><i class="fa-solid fa-percent mr-1"></i>%</button>
+                        <select onchange="changeChartPalette('corpo', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="emerald">🎨 Cores: Esmeralda Luxo</option>
+                            <option value="solid">🎨 Cor Única Corporativa</option>
+                            <option value="mint">🎨 Cores: Menta Suave</option>
+                            <option value="teal">🎨 Cores: Teal Técnico</option>
+                        </select>
+                        <select onchange="changeChartStyle('corpo', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="horizontalBar">1. Barras Horizontais (Ideal)</option>
+                            <option value="bar">2. Colunas Verticais</option>
+                            <option value="doughnut">3. Rosca Executiva</option>
+                            <option value="pie">4. Pizza Clássica</option>
+                            <option value="line">5. Linha de Tendência</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base">Partes do Corpo Atingidas</h3><button onclick="exportChartHQ('chartPartesCorpo', 'Partes_Corpo')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button></div><div class="h-80 relative"><canvas id="chartPartesCorpo"></canvas></div></div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-bold text-white text-base">Tipos de Lesão Registrados</h3>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="toggleChartPct('lesao')" id="btnPct_lesao" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer font-bold"><i class="fa-solid fa-percent mr-1"></i>%</button>
+                                <button onclick="exportChartHQ('chartTiposLesao', 'Tipos_Lesao')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button>
+                            </div>
+                        </div>
+                        <div class="h-80 relative flex items-center justify-center"><canvas id="chartTiposLesao"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4 -->
+        <div id="slideContent-4" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4 flex justify-between items-center flex-wrap gap-2">
+                    <h2 class="text-3xl font-black text-white">Setores & Desvios</h2>
+                    <div class="flex items-center space-x-2 flex-wrap gap-2">
+                        <button onclick="toggleChartPct('setores')" id="btnPct_setores" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer font-bold"><i class="fa-solid fa-percent mr-1"></i>%</button>
+                        <select onchange="changeChartStyle('setores', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="doughnut">1. Rosca Comparativa (Ideal)</option>
+                            <option value="bar">2. Colunas Verticais</option>
+                            <option value="horizontalBar">3. Barras Horizontais</option>
+                            <option value="pie">4. Pizza Clássica</option>
+                            <option value="line">5. Linha de Tendência</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base">Status de Planos de Ação</h3><button onclick="exportChartHQ('chartPlanosAcao', 'Planos_Acao')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button></div><div class="h-80 relative"><canvas id="chartPlanosAcao"></canvas></div></div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base">Ranking de Setores com Maior Desvio</h3><button onclick="exportChartHQ('chartSetoresDesvio', 'Ranking_Setores')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button></div><div class="h-80 relative"><canvas id="chartSetoresDesvio"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5 -->
+        <div id="slideContent-5" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4 flex justify-between items-center flex-wrap gap-2">
+                    <h2 class="text-3xl font-black text-white">Quase Acidente</h2>
+                    <div class="flex items-center space-x-2 flex-wrap gap-2">
+                        <button onclick="toggleChartPct('nearMiss')" id="btnPct_nearMiss" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer font-bold"><i class="fa-solid fa-percent mr-1"></i>%</button>
+                        <select onchange="changeChartPalette('nearMiss', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="emerald">🎨 Cores: Esmeralda Luxo</option>
+                            <option value="solid">🎨 Cor Única Corporativa</option>
+                            <option value="mint">🎨 Cores: Menta Suave</option>
+                            <option value="teal">🎨 Cores: Teal Técnico</option>
+                        </select>
+                        <select onchange="changeChartStyle('nearMiss', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="bar">1. Colunas Verticais</option>
+                            <option value="line">2. Linha de Tendência</option>
+                            <option value="horizontalBar">3. Barras Horizontais</option>
+                            <option value="doughnut">4. Rosca Executiva</option>
+                            <option value="pie">5. Pizza Clássica</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-white text-base">Quase Acidente Reportados</h3>
+                            <button onclick="exportChartHQ('chartNearMiss', 'Quase_Acidente')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button>
+                        </div>
+                        <div class="h-80 relative"><canvas id="chartNearMiss"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6 -->
+        <div id="slideContent-6" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4 flex justify-between items-center flex-wrap gap-2">
+                    <h2 class="text-3xl font-black text-white">Inspeções de Segurança</h2>
+                    <div class="flex items-center space-x-2 flex-wrap gap-2">
+                        <button onclick="toggleChartPct('inspPR')" id="btnPct_inspPR" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer font-bold"><i class="fa-solid fa-percent mr-1"></i>%</button>
+                        <select onchange="changeChartPalette('inspPR', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="emerald">🎨 Cores: Esmeralda Luxo</option>
+                            <option value="solid">🎨 Cor Única Corporativa</option>
+                            <option value="mint">🎨 Cores: Menta Suave</option>
+                            <option value="teal">🎨 Cores: Teal Técnico</option>
+                        </select>
+                        <select onchange="changeChartStyle('inspPR', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="bar">1. Colunas Verticais</option>
+                            <option value="line">2. Linha de Tendência</option>
+                            <option value="horizontalBar">3. Barras Horizontais</option>
+                            <option value="doughnut">4. Rosca Executiva</option>
+                            <option value="pie">5. Pizza Clássica</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-white text-base">Inspeções Realizadas</h3>
+                            <button onclick="exportChartHQ('chartInspecoesPR', 'Inspecoes_Realizadas')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button>
+                        </div>
+                        <div class="h-80 relative"><canvas id="chartInspecoesPR"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7 -->
+        <div id="slideContent-7" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4 flex justify-between items-center flex-wrap gap-2">
+                    <h2 class="text-3xl font-black text-white">Temas de Treinamento</h2>
+                    <div class="flex items-center space-x-2 flex-wrap gap-2">
+                        <button onclick="toggleChartPct('treinamentos')" id="btnPct_treinamentos" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer font-bold"><i class="fa-solid fa-percent mr-1"></i>%</button>
+                        <select onchange="changeChartPalette('treinamentos', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="emerald">🎨 Cores: Esmeralda Luxo</option>
+                            <option value="solid">🎨 Cor Única Corporativa</option>
+                            <option value="mint">🎨 Cores: Menta Suave</option>
+                            <option value="teal">🎨 Cores: Teal Técnico</option>
+                        </select>
+                        <select onchange="changeChartStyle('treinamentos', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="bar">1. Colunas Verticais</option>
+                            <option value="line">2. Linha de Tendência</option>
+                            <option value="horizontalBar">3. Barras Horizontais</option>
+                            <option value="doughnut">4. Rosca Executiva</option>
+                            <option value="pie">5. Pizza Clássica</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base">Horas de Treinamento Realizadas</h3><button onclick="exportChartHQ('chartTreinamentos', 'Horas_Treinamento')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartTreinamentos"></canvas></div>
+                    </div>
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-bold text-white text-base">Distribuição por Tema</h3>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="toggleChartPct('temasPie')" id="btnPct_temasPie" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer font-bold"><i class="fa-solid fa-percent mr-1"></i>%</button>
+                                <button onclick="exportChartHQ('chartTemasTreino', 'Temas_Treinamento')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button>
+                            </div>
+                        </div>
+                        <div class="h-80 relative flex items-center justify-center"><canvas id="chartTemasTreino"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8 -->
+        <div id="slideContent-8" class="space-y-8 hidden">
+            <div class="glass-panel rounded-3xl p-8 space-y-6">
+                <div class="border-b border-lpaBorder pb-4 flex justify-between items-center flex-wrap gap-2">
+                    <h2 class="text-3xl font-black text-white">Diálogo de Segurança (DDS)</h2>
+                    <div class="flex items-center space-x-2 flex-wrap gap-2">
+                        <button onclick="toggleChartPct('ddsSetor')" id="btnPct_ddsSetor" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer font-bold"><i class="fa-solid fa-percent mr-1"></i>%</button>
+                        <select onchange="changeChartStyle('ddsSetor', this.value)" class="bg-lpaDark border border-lpaBorder text-xs text-lpaLight font-bold px-3 py-1.5 rounded-xl cursor-pointer">
+                            <option value="bar">1. Colunas Verticais</option>
+                            <option value="line">2. Linha de Tendência</option>
+                            <option value="horizontalBar">3. Barras Horizontais</option>
+                            <option value="doughnut">4. Rosca Executiva</option>
+                            <option value="pie">5. Pizza Clássica</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-8">
+                    <div class="bg-lpaDark/50 rounded-2xl p-6 border border-lpaBorder">
+                        <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white text-base">Participação em DDS por Setor</h3><button onclick="exportChartHQ('chartDDSsetor', 'Participacao_DDS')" class="text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer">Baixar PNG</button></div>
+                        <div class="h-80 relative"><canvas id="chartDDSsetor"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer de Navegação -->
+    <footer class="bg-lpaDark border-t border-lpaBorder py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 flex items-center justify-between">
+            <button onclick="prevSlide()" class="bg-lpaCard hover:bg-lpaBorder text-white font-bold px-5 py-2.5 rounded-xl text-sm transition border border-lpaBorder flex items-center space-x-2"><i class="fa-solid fa-arrow-left"></i><span>Anterior</span></button>
+            <span id="slideIndicator" class="text-xs font-bold text-slate-400">Slide 1 de 8</span>
+            <button onclick="nextSlide()" class="bg-lpaGreen hover:bg-lpaAccent text-slate-950 font-black px-6 py-2.5 rounded-xl text-sm transition flex items-center space-x-2"><span>Próximo</span><i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+    </footer>
+
+    <!-- MODAL DE BANCO DE DADOS -->
+    <div id="dataModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-lpaBorder">
+            <div class="p-6 border-b border-lpaBorder flex items-center justify-between sticky top-0 bg-lpaDark z-10">
+                <h3 class="font-black text-lg text-white"><i class="fa-solid fa-address-card text-lpaLight mr-2"></i>Gerenciamento por Fichas (Banco de Dados Sincronizado)</h3>
+                <button onclick="closeDataModal()" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-6 space-y-6">
+                <!-- Seletor de Categorias / Abas -->
+                <div class="flex space-x-2 border-b border-lpaBorder pb-3 overflow-x-auto">
+                    <button onclick="switchDbTab('geral')" id="dbTabGeral" class="db-tab active px-4 py-2 rounded-xl text-xs transition cursor-pointer whitespace-nowrap">1. Indicadores Gerais</button>
+                    <button onclick="switchDbTab('anatomia')" id="dbTabAnatomia" class="db-tab px-4 py-2 rounded-xl text-xs transition cursor-pointer bg-lpaDark text-slate-300 whitespace-nowrap">2. Anatomia dos Acidentes</button>
+                    <button onclick="switchDbTab('setores')" id="dbTabSetores" class="db-tab px-4 py-2 rounded-xl text-xs transition cursor-pointer bg-lpaDark text-slate-300 whitespace-nowrap">3. Setores & Desvios</button>
+                    <button onclick="switchDbTab('inspecoes')" id="dbTabInspecoes" class="db-tab px-4 py-2 rounded-xl text-xs transition cursor-pointer bg-lpaDark text-slate-300 whitespace-nowrap">4. Inspeções de Segurança</button>
+                    <button onclick="switchDbTab('temas')" id="dbTabTemas" class="db-tab px-4 py-2 rounded-xl text-xs transition cursor-pointer bg-lpaDark text-slate-300 whitespace-nowrap">5. Temas de Treinamento</button>
+                    <button onclick="switchDbTab('dds')" id="dbTabDds" class="db-tab px-4 py-2 rounded-xl text-xs transition cursor-pointer bg-lpaDark text-slate-300 whitespace-nowrap">6. Diálogo de Segurança (DDS)</button>
+                </div>
+
+                <div class="flex flex-wrap gap-2 items-center justify-between">
+                    <button onclick="addNewDataCard()" class="bg-lpaGreen hover:bg-lpaAccent text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs transition flex items-center space-x-2 cursor-pointer shadow-lg"><i class="fa-solid fa-plus-circle text-sm"></i><span>Nova Ficha no Topo</span></button>
+                    <div class="flex gap-2">
+                        <button onclick="undoLastAction()" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer"><i class="fa-solid fa-rotate-left mr-1"></i>Desfazer</button>
+                        <button onclick="clearAllData()" class="bg-red-950 text-red-400 hover:bg-red-900 border border-red-800 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer"><i class="fa-solid fa-trash-can mr-1"></i>Apagar Tudo da Aba</button>
+                    </div>
+                </div>
+
+                <!-- LISTA DE FICHAS EM CARDS -->
+                <div id="cardsContainer" class="grid grid-cols-1 gap-4">
+                    <!-- Gerado dinamicamente via JS -->
+                </div>
+
+                <div class="flex justify-end pt-4 border-t border-lpaBorder">
+                    <button onclick="closeDataModal()" class="bg-lpaGreen hover:bg-lpaAccent text-slate-950 font-black px-6 py-2.5 rounded-xl text-sm transition">Salvar e Atualizar Painel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Principal & Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD3ayGWDvNN8V5tgzVtQgWbDdXlcqP0nm0",
+            authDomain: "lpagestaodedados.firebaseapp.com",
+            projectId: "lpagestaodedados",
+            storageBucket: "lpagestaodedados.firebasestorage.app",
+            messagingSenderId: "834663700528",
+            appId: "1:834663700528:web:5ec4d7c35e1049a76af5f5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        Chart.register(ChartDataLabels);
+        Chart.defaults.color = '#cbd5e1';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.scale.grid.color = 'rgba(22, 78, 50, 0.25)';
+
+        let valueFormat = 'num';
+        let viewMode = 'mensal';
+        window.sstData = [];
+        let historyStack = [];
+        let currentDbTab = 'geral';
+        let charts = {};
+        let customChartTypes = {};
+        let customChartPalettes = {};
+        let chartPctModes = {};
+
+        const palettes = {
+            emerald: ['#059669', '#10b981', '#34d399', '#14b8a6', '#2dd4bf', '#22c55e', '#4ade80', '#a3e635', '#0d9488', '#0f766e', '#047857', '#6ee7b7'],
+            solid:   '#10b981',
+            mint:    ['#047857', '#059669', '#0d9488', '#10b981', '#14b8a6', '#22c55e', '#2dd4bf', '#34d399', '#4ade80', '#6ee7b7', '#a3e635', '#bef264'],
+            teal:    ['#0f766e', '#0d9488', '#14b8a6', '#2dd4bf', '#059669', '#10b981', '#34d399', '#22c55e', '#4ade80', '#6ee7b7', '#a3e635', '#86efac']
+        };
+
+        window.toggleChartPct = function(key) {
+            chartPctModes[key] = !chartPctModes[key];
+            const btn = document.getElementById('btnPct_' + key);
+            if(btn) {
+                if(chartPctModes[key]) {
+                    btn.className = 'text-xs bg-lpaGreen text-slate-950 px-3 py-1.5 rounded border border-lpaBorder cursor-pointer font-bold';
+                    btn.innerHTML = '<i class="fa-solid fa-percent mr-1"></i>% Ativo';
+                } else {
+                    btn.className = 'text-xs bg-lpaCard hover:bg-lpaBorder px-3 py-1.5 rounded text-lpaLight border border-lpaBorder cursor-pointer font-bold';
+                    btn.innerHTML = '<i class="fa-solid fa-percent mr-1"></i>%';
+                }
+            }
+            initApp();
+        }
+
+        window.changeChartStyle = function(chartKey, type) {
+            customChartTypes[chartKey] = type;
+            initApp();
+        }
+
+        window.changeChartPalette = function(chartKey, paletteName) {
+            customChartPalettes[chartKey] = paletteName;
+            initApp();
+        }
+
+        function getPalette(chartKey, length) {
+            let pName = customChartPalettes[chartKey] || 'emerald';
+            let p = palettes[pName] || palettes.emerald;
+            if (typeof p === 'string') {
+                return p;
+            }
+            let res = [];
+            for(let i=0; i<length; i++) {
+                res.push(p[i % p.length]);
+            }
+            return res;
+        }
+
+        window.setViewMode = function(mode) {
+            viewMode = mode;
+            document.getElementById('modeMensal').className = mode === 'mensal' ? 'px-3 py-1.5 rounded-lg font-bold transition bg-lpaGreen text-slate-950' : 'px-3 py-1.5 rounded-lg font-bold transition text-slate-300 hover:text-white';
+            document.getElementById('modeAcumulado').className = mode === 'acumulado' ? 'px-3 py-1.5 rounded-lg font-bold transition bg-lpaGreen text-slate-950' : 'px-3 py-1.5 rounded-lg font-bold transition text-slate-300 hover:text-white';
+            const badge1 = document.getElementById('badgeMode1');
+            if(badge1) badge1.innerText = mode === 'mensal' ? 'Modo: Mensal' : 'Modo: Acumulado (YTD)';
+            initApp();
+        }
+
+        async function carregarDadosDoFirebase() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "sst_dados"));
+                window.sstData = [];
+                querySnapshot.forEach((docSnap) => {
+                    let d = docSnap.data();
+                    if (d.tipoTab === 'brigada' || d.tipoTab === 'atos') return;
+                    window.sstData.push({ firebaseId: docSnap.id, ...d });
+                });
+            } catch (e) { console.error("Erro ao carregar do Firebase:", e); }
+            initApp();
+        }
+
+        function saveStateForUndo() {
+            historyStack.push(JSON.parse(JSON.stringify(window.sstData)));
+            if(historyStack.length > 20) historyStack.shift();
+        }
+
+        window.undoLastAction = async function() {
+            if(historyStack.length === 0) return alert("Nenhuma alteração recente para desfazer.");
+            window.sstData = historyStack.pop();
+            for(let item of window.sstData) {
+                if(item.firebaseId) {
+                    let clean = { ...item }; let id = clean.firebaseId; delete clean.firebaseId;
+                    await setDoc(doc(db, "sst_dados", id), clean); item.firebaseId = id;
+                }
+            }
+            openDataModal(); initApp(); alert("Ação desfeita com sucesso!");
+        }
+
+        window.clearAllData = async function() {
+            if(confirm(`Tem certeza que deseja apagar todos os dados desta aba?`)) {
+                try {
+                    saveStateForUndo();
+                    let itemsToDelete = window.sstData.filter(d => (d.tipoTab || 'geral') === currentDbTab);
+                    for(let item of itemsToDelete) {
+                        if(item.firebaseId) await deleteDoc(doc(db, "sst_dados", item.firebaseId));
+                    }
+                    window.sstData = window.sstData.filter(d => (d.tipoTab || 'geral') !== currentDbTab);
+                    initApp();
+                    openDataModal();
+                } catch(e) { console.error(e); }
+            }
+        }
+
+        window.switchSlide = function(num) {
+            document.querySelectorAll('[id^="slideContent-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.slide-tab').forEach(el => el.classList.remove('active'));
+            const targetSlide = document.getElementById('slideContent-' + num);
+            if(targetSlide) targetSlide.classList.remove('hidden');
+            const targetTab = document.getElementById('btnSlide' + num);
+            if(targetTab) targetTab.classList.add('active');
+            currentSlideNum = num;
+            document.getElementById('slideIndicator').innerText = `Slide ${num} de 8`;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => { renderAllCharts(); }, 80);
+        }
+
+        let currentSlideNum = 1;
+        window.nextSlide = function() { if(currentSlideNum < 8) window.switchSlide(currentSlideNum + 1); else window.switchSlide(1); }
+        window.prevSlide = function() { if(currentSlideNum > 1) window.switchSlide(currentSlideNum - 1); else window.switchSlide(8); }
+
+        window.switchDbTab = function(tab) {
+            currentDbTab = tab;
+            ['geral', 'anatomia', 'setores', 'inspecoes', 'temas', 'dds'].forEach(t => {
+                const tabEl = document.getElementById('dbTab' + t.charAt(0).toUpperCase() + t.slice(1));
+                if(tabEl) tabEl.className = 'db-tab px-4 py-2 rounded-xl text-xs transition cursor-pointer bg-lpaDark text-slate-300 whitespace-nowrap';
+            });
+            const activeTab = document.getElementById('dbTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+            if(activeTab) activeTab.className = 'db-tab active px-4 py-2 rounded-xl text-xs transition cursor-pointer whitespace-nowrap';
+            openDataModal();
+        }
+
+        window.openDataModal = function() {
+            const container = document.getElementById('cardsContainer');
+            if(!container) return;
+            container.innerHTML = '';
+
+            const mesNomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            let sortedModalData = [...window.sstData].sort((a,b) => (Number(a.ano||2026) - Number(b.ano||2026)) || (Number(a.mes||1) - Number(b.mes||1)));
+
+            let filtered = sortedModalData.filter(d => (d.tipoTab || 'geral') === currentDbTab);
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-12 text-slate-400 bg-lpaDark/50 rounded-2xl border border-lpaBorder">Nenhuma ficha cadastrada nesta aba. Clique em <b>"Nova Ficha no Topo"</b> acima.</div>`;
+            }
+
+            filtered.forEach((item) => {
+                let realIdx = window.sstData.indexOf(item);
+                let isChecked = item.ativo !== false ? 'checked' : '';
+                let mVal = Number(item.mes || 1);
+
+                let cardHtml = `<div class="bg-lpaDark/70 border border-lpaBorder rounded-2xl p-5 space-y-4 shadow-lg">
+                    <div class="flex items-center justify-between border-b border-lpaBorder/60 pb-3">
+                        <div class="flex items-center space-x-3">
+                            <label class="flex items-center space-x-1 text-xs text-lpaLight cursor-pointer">
+                                <input type="checkbox" ${isChecked} onchange="updateItemLocally(${realIdx}, 'ativo', this.checked)" class="rounded bg-lpaDark border-lpaBorder">
+                                <span class="font-bold">Ativo no Painel</span>
+                            </label>
+                            <span class="text-xs text-slate-400 font-mono">ID: ${item.firebaseId ? item.firebaseId.substring(0,6) : 'Novo'}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <select onchange="updateItemLocally(${realIdx}, 'ano', this.value)" class="bg-lpaCard border border-lpaBorder px-2 py-1 rounded text-xs text-white font-bold">
+                                <option value="2025" ${String(item.ano||'2026') === '2025' ? 'selected' : ''}>2025</option>
+                                <option value="2026" ${String(item.ano||'2026') === '2026' ? 'selected' : ''}>2026</option>
+                            </select>
+                            <select onchange="updateItemLocally(${realIdx}, 'mes', this.value)" class="bg-lpaCard border border-lpaBorder px-2 py-1 rounded text-xs text-white font-bold">
+                                ${mesNomes.map((m, i) => `<option value="${i+1}" ${mVal === (i+1) ? 'selected' : ''}>${m}</option>`).join('')}
+                            </select>
+                            <button onclick="deleteDataRow(${realIdx})" class="text-red-400 hover:text-red-300 bg-red-950/40 hover:bg-red-900/60 p-1.5 rounded-lg text-xs transition cursor-pointer" title="Excluir Ficha"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>`;
+
+                if (currentDbTab === 'geral') {
+                    cardHtml += `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+                        <div><label class="block text-slate-400 mb-1">HHT</label><input type="number" value="${item.hht || 0}" onchange="updateItemLocally(${realIdx}, 'hht', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                        <div><label class="block text-slate-400 mb-1">Acid. Afast.</label><input type="number" value="${item.acidentesAfast || 0}" onchange="updateItemLocally(${realIdx}, 'acidentesAfast', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                        <div><label class="block text-slate-400 mb-1">Acid. Sem Afast.</label><input type="number" value="${item.acidentesSemAfast || 0}" onchange="updateItemLocally(${realIdx}, 'acidentesSemAfast', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                        <div><label class="block text-slate-400 mb-1">Dias Perdidos</label><input type="number" value="${item.diasPerdidos || 0}" onchange="updateItemLocally(${realIdx}, 'diasPerdidos', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                        <div><label class="block text-slate-400 mb-1">Planos Abertos</label><input type="number" value="${item.planosAbertos || 0}" onchange="updateItemLocally(${realIdx}, 'planosAbertos', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                        <div><label class="block text-slate-400 mb-1">Quase Acidente</label><input type="number" value="${item.nearMissQtd || 0}" onchange="updateItemLocally(${realIdx}, 'nearMissQtd', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                    </div>`;
+                } else if (currentDbTab === 'anatomia') {
+                    cardHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                        <div><label class="block text-slate-400 mb-1">Parte do Corpo</label><input type="text" value="${item.corpoLabel || ''}" onchange="updateItemLocally(${realIdx}, 'corpoLabel', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white"></div>
+                        <div><label class="block text-slate-400 mb-1">Qtd Corpo</label><input type="number" value="${item.corpoQtd || 0}" onchange="updateItemLocally(${realIdx}, 'corpoQtd', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                        <div><label class="block text-slate-400 mb-1">Tipo de Lesão</label><input type="text" value="${item.lesaoLabel || ''}" onchange="updateItemLocally(${realIdx}, 'lesaoLabel', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white"></div>
+                        <div><label class="block text-slate-400 mb-1">Qtd Lesão</label><input type="number" value="${item.lesaoQtd || 0}" onchange="updateItemLocally(${realIdx}, 'lesaoQtd', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                    </div>`;
+                } else if (currentDbTab === 'setores') {
+                    cardHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div><label class="block text-slate-400 mb-1">Setor com Desvio</label><input type="text" value="${item.setorLabel || ''}" onchange="updateItemLocally(${realIdx}, 'setorLabel', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white"></div>
+                        <div><label class="block text-slate-400 mb-1">Qtd Desvios</label><input type="number" value="${item.setorQtd || 0}" onchange="updateItemLocally(${realIdx}, 'setorQtd', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                    </div>`;
+                } else if (currentDbTab === 'inspecoes') {
+                    cardHtml += `<div class="grid grid-cols-1 gap-3 text-xs">
+                        <div><label class="block text-slate-400 mb-1">Inspeções Realizadas</label><input type="number" value="${item.inspReal || 0}" onchange="updateItemLocally(${realIdx}, 'inspReal', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                    </div>`;
+                } else if (currentDbTab === 'temas') {
+                    cardHtml += `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div><label class="block text-slate-400 mb-1">Tema Treinamento (Label)</label><input type="text" value="${item.treinoTemaLabel || ''}" onchange="updateItemLocally(${realIdx}, 'treinoTemaLabel', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white"></div>
+                        <div><label class="block text-slate-400 mb-1">Qtd Tema Treino</label><input type="number" value="${item.treinoTemaQtd || 0}" onchange="updateItemLocally(${realIdx}, 'treinoTemaQtd', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                        <div><label class="block text-slate-400 mb-1">Horas Trein. Real.</label><input type="number" value="${item.treinoTemaHoras || 0}" onchange="updateItemLocally(${realIdx}, 'treinoTemaHoras', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                    </div>`;
+                } else if (currentDbTab === 'dds') {
+                    cardHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div><label class="block text-slate-400 mb-1">Setor DDS</label><input type="text" value="${item.ddsSetor || ''}" onchange="updateItemLocally(${realIdx}, 'ddsSetor', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white"></div>
+                        <div><label class="block text-slate-400 mb-1">DDS Part. (%)</label><input type="number" value="${item.ddsPart || 0}" onchange="updateItemLocally(${realIdx}, 'ddsPart', this.value)" class="w-full bg-lpaCard border border-lpaBorder p-2 rounded-xl text-white font-bold"></div>
+                    </div>`;
+                }
+
+                cardHtml += `</div>`;
+                container.innerHTML += cardHtml;
+            });
+
+            document.getElementById('dataModal').classList.remove('hidden');
+        }
+
+        window.closeDataModal = async function() {
+            document.getElementById('dataModal').classList.add('hidden');
+            carregarDadosDoFirebase();
+        }
+
+        window.updateItemLocally = async function(idx, field, val) {
+            saveStateForUndo();
+            const textFields = ['ano', 'corpoLabel', 'lesaoLabel', 'setorLabel', 'treinoTemaLabel', 'ddsSetor'];
+            let item = window.sstData[idx];
+            item[field] = textFields.includes(field) || field === 'ativo' ? val : (val === '' ? 0 : Number(val));
+            if(item.firebaseId) {
+                let clean = { ...item }; let id = clean.firebaseId; delete clean.firebaseId;
+                await setDoc(doc(db, "sst_dados", id), clean); item.firebaseId = id;
+            }
+            initApp();
+        }
+
+        window.addNewDataCard = async function() {
+            saveStateForUndo();
+            let newItem = { tipoTab: currentDbTab, ano: "2026", mes: 1, ativo: true, hht: 0, acidentesAfast: 0, acidentesSemAfast: 0, diasPerdidos: 0, planosAbertos: 0, planosVencidos: 0, nearMissQtd: 0, corpoLabel: "", corpoQtd: 0, lesaoLabel: "", lesaoQtd: 0, setorLabel: "", setorQtd: 0, treinoTemaLabel: "", treinoTemaQtd: 0, treinoTemaHoras: 0, inspReal: 0, treinoReal: 0, ddsSetor: "", ddsPart: 0 };
+            const docRef = await addDoc(collection(db, "sst_dados"), newItem);
+            newItem.firebaseId = docRef.id;
+            window.sstData.unshift(newItem);
+            openDataModal();
+            initApp();
+        }
+
+        window.deleteDataRow = async function(idx) {
+            if(!confirm('Deseja excluir esta ficha?')) return;
+            saveStateForUndo();
+            let item = window.sstData[idx];
+            if(item.firebaseId) await deleteDoc(doc(db, "sst_dados", item.firebaseId));
+            window.sstData.splice(idx, 1);
+            openDataModal();
+            initApp();
+        }
+
+        function getProcessedData(year) {
+            let raw = window.sstData.filter(d => String(d.ano) === String(year) && d.ativo !== false).sort((a,b) => Number(a.mes || 1) - Number(b.mes || 1));
+            if(viewMode === 'acumulado') {
+                let accAfast = 0, accSemAfast = 0, accDias = 0, accPlan = 0, accVenc = 0, accNear = 0, accInspR = 0, accTreinoR = 0;
+                return raw.map(d => {
+                    let t = d.tipoTab || 'geral';
+                    if(t === 'geral') {
+                        accAfast += Number(d.acidentesAfast || 0);
+                        accSemAfast += Number(d.acidentesSemAfast || 0);
+                        accDias += Number(d.diasPerdidos || 0);
+                        accPlan += Number(d.planosAbertos || 0);
+                        accVenc += Number(d.planosVencidos || 0);
+                        accNear += Number(d.nearMissQtd || 0);
+                    }
+                    if(t === 'inspecoes') accInspR += Number(d.inspReal || 0);
+                    if(t === 'treinamentos') accTreinoR += Number(d.treinoReal || 0);
+                    
+                    return { 
+                        ...d, 
+                        acidentesAfast: accAfast, 
+                        acidentesSemAfast: accSemAfast, 
+                        diasPerdidos: accDias, 
+                        planosAbertos: accPlan, 
+                        planosVencidos: accVenc, 
+                        nearMissQtd: accNear, 
+                        inspReal: accInspR + Number(d.inspReal || 0), 
+                        treinoReal: accTreinoR + Number(d.treinoReal || 0) 
+                    };
+                });
+            }
+            return raw;
+        }
+
+        function initApp() { renderAllCharts(); }
+
+        function getFormatter(chartKey = null) {
+            return (val, ctx) => {
+                if (val === 0 || isNaN(val)) return '';
+                if (chartKey === 'freq' || chartKey === 'grav') {
+                    return Number(val).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+                }
+                let isPctActive = chartPctModes[chartKey];
+                if (isPctActive) {
+                    let sum = 0;
+                    const dataset = ctx.chart.data.datasets[ctx.datasetIndex].data;
+                    dataset.forEach(v => { if(!isNaN(v)) sum += Number(v); });
+                    if (sum === 0) return '';
+                    let perc = ((val / sum) * 100).toFixed(1);
+                    return perc + '%';
+                }
+                return val;
+            };
+        }
+
+        function getChartConfig(type, data, options, chartKey) {
+            let chartType = 'bar';
+            let extraOpts = JSON.parse(JSON.stringify(options));
+
+            if (type === 'line') chartType = 'line';
+            else if (type === 'doughnut') chartType = 'doughnut';
+            else if (type === 'pie') chartType = 'pie';
+            else if (type === 'horizontalBar') {
+                chartType = 'bar';
+                extraOpts.indexAxis = 'y';
+            }
+
+            if (extraOpts.plugins && extraOpts.plugins.datalabels) {
+                extraOpts.plugins.datalabels.formatter = getFormatter(chartKey);
+            }
+
+            return { type: chartType, data: data, options: extraOpts };
+        }
+
+        function renderAllCharts() {
+            const mesFullNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            
+            function getRawMonthlyData(year) {
+                let processed = getProcessedData(year);
+                let mapped = new Array(12).fill(0).map(() => ({ acidentesAfast: 0, acidentesSemAfast: 0, diasPerdidos: 0, hht: 0, nearMissQtd: 0, inspReal: 0, treinoReal: 0 }));
+                processed.forEach(d => {
+                    let mIdx = Number(d.mes || 1) - 1;
+                    if(mIdx >= 0 && mIdx < 12) {
+                        let t = d.tipoTab || 'geral';
+                        if (t === 'geral') {
+                            mapped[mIdx].acidentesAfast = Number(d.acidentesAfast || 0);
+                            mapped[mIdx].acidentesSemAfast = Number(d.acidentesSemAfast || 0);
+                            mapped[mIdx].diasPerdidos = Number(d.diasPerdidos || 0);
+                            mapped[mIdx].hht = Number(d.hht || 0);
+                            mapped[mIdx].nearMissQtd = Number(d.nearMissQtd || 0);
+                        }
+                        if(t === 'inspecoes') mapped[mIdx].inspReal = Number(d.inspReal || 0);
+                        if(t === 'treinamentos') mapped[mIdx].treinoReal = Number(d.treinoReal || 0);
+                    }
+                });
+                return mapped;
+            }
+
+            let maxMonth26 = 0;
+            window.sstData.forEach(d => {
+                if(String(d.ano) === "2026" && d.ativo !== false) {
+                    let m = Number(d.mes || 1);
+                    if(m > maxMonth26) maxMonth26 = m;
+                }
+            });
+            if(maxMonth26 === 0) maxMonth26 = 12;
+
+            const mesNames = mesFullNames.slice(0, maxMonth26);
+
+            const m25 = getRawMonthlyData("2025").slice(0, maxMonth26);
+            const m26 = getRawMonthlyData("2026").slice(0, maxMonth26);
+
+            const data25_acc = getProcessedData("2025");
+            const data26_acc = getProcessedData("2026");
+
+            const af25 = m25.map(d => Number(d.acidentesAfast || 0) + Number(d.acidentesSemAfast || 0));
+            const af26 = m26.map(d => Number(d.acidentesAfast || 0) + Number(d.acidentesSemAfast || 0));
+
+            const tf25 = m25.map(d => d.hht > 0 ? Number((((d.acidentesAfast + d.acidentesSemAfast) * 1000000) / d.hht).toFixed(2)) : 0);
+            const tf26 = m26.map(d => d.hht > 0 ? Number((((d.acidentesAfast + d.acidentesSemAfast) * 1000000) / d.hht).toFixed(2)) : 0);
+            const tg25 = m25.map(d => d.hht > 0 ? Number(((d.diasPerdidos * 1000000) / d.hht).toFixed(2)) : 0);
+            const tg26 = m26.map(d => d.hht > 0 ? Number(((d.diasPerdidos * 1000000) / d.hht).toFixed(2)) : 0);
+
+            let corpoMap = {}, lesaoMap = {}, setorMap = {}, treinoTemaMap = {}, ddsSetorMap = {};
+            let activeCombined = [...data25_acc, ...data26_acc].filter(d => d.ativo !== false);
+
+            activeCombined.forEach(d => {
+                let t = d.tipoTab || 'geral';
+                if(t === 'anatomia') {
+                    if(d.corpoLabel && String(d.corpoLabel).trim() !== "") {
+                        let k = String(d.corpoLabel).trim().toUpperCase();
+                        corpoMap[k] = (corpoMap[k] || 0) + Number(d.corpoQtd || 0);
+                    }
+                    if(d.lesaoLabel && String(d.lesaoLabel).trim() !== "") {
+                        let k = String(d.lesaoLabel).trim().toUpperCase();
+                        lesaoMap[k] = (lesaoMap[k] || 0) + Number(d.lesaoQtd || 0);
+                    }
+                }
+                if(t === 'setores') {
+                    if(d.setorLabel && String(d.setorLabel).trim() !== "") {
+                        let k = String(d.setorLabel).trim().toUpperCase();
+                        setorMap[k] = (setorMap[k] || 0) + Number(d.setorQtd || 1);
+                    }
+                }
+                if(t === 'temas') {
+                    if(d.treinoTemaLabel && String(d.treinoTemaLabel).trim() !== "") {
+                        let k = String(d.treinoTemaLabel).trim().toUpperCase();
+                        treinoTemaMap[k] = (treinoTemaMap[k] || 0) + Number(d.treinoTemaQtd || 0);
+                    }
+                }
+                if(t === 'dds' && d.ddsSetor && String(d.ddsSetor).trim() !== "") {
+                    let k = String(d.ddsSetor).trim().toUpperCase();
+                    ddsSetorMap[k] = (ddsSetorMap[k] || 0) + Number(d.ddsPart || 0);
+                }
+            });
+
+            function getTop5(mapObj) {
+                let sorted = Object.entries(mapObj).sort((a,b) => b[1] - a[1]).slice(0, 5);
+                return { labels: sorted.map(x => x[0]), values: sorted.map(x => x[1]) };
+            }
+
+            const corpoTop = getTop5(corpoMap);
+            const lesaoTop = getTop5(lesaoMap);
+            const setorTop = getTop5(setorMap);
+            const treinoTemaTop = getTop5(treinoTemaMap);
+
+            const totPlanos = data26_acc.reduce((a,c)=>a+Number(c.planosAbertos || 0), 0);
+            const totVencidos = data26_acc.reduce((a,c)=>a+Number(c.planosVencidos || 0), 0);
+
+            for(let k in charts) { if(charts[k]) charts[k].destroy(); }
+
+            const baseOptions = { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 20, right: 15, bottom: 10, left: 15 } }, plugins: { datalabels: { display: true, color: '#f8fafc', font: { weight: 'bold', size: 10 }, formatter: getFormatter() }, legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } };
+            const intOpts = { ...baseOptions, scales: { y: { ticks: { precision: 0 } } } };
+
+            let currentSumStyle = customChartTypes['sum'] || 'bar';
+            let sumPalette = getPalette('sum', af26.length);
+
+            let has25Data = data25_acc.length > 0;
+            let sumDatasets = [];
+            if(has25Data) sumDatasets.push({ label: "2025", data: af25, backgroundColor: '#334155', borderColor: '#05130d', borderWidth: 2, borderRadius: 6 });
+            
+            sumDatasets.push({ label: "2026", data: af26, backgroundColor: sumPalette, borderColor: '#05130d', borderWidth: 2, borderRadius: 6 });
+
+            if(document.getElementById('chartSumarioComp')) {
+                let cfg = getChartConfig(currentSumStyle, { labels: mesNames, datasets: sumDatasets }, intOpts, 'sum');
+                charts.sum = new Chart(document.getElementById('chartSumarioComp'), cfg);
+            }
+            
+            let freqStyle = customChartTypes['freq'] || 'bar';
+            if(freqStyle === 'doughnut' || freqStyle === 'pie') freqStyle = 'bar';
+
+            let freqPalette = getPalette('freq', tf26.length);
+            let freqDatasets = [{ type: 'line', label: 'Tendência', data: tf26, borderColor: '#34d399', borderWidth: 3, tension: 0.3, datalabels: { display: false } }];
+            if(has25Data) freqDatasets.push({ label: 'TF 2025', data: tf25, backgroundColor: '#334155', borderColor: '#05130d', borderWidth: 2, borderRadius: 6 });
+            freqDatasets.push({ label: 'TF 2026', data: tf26, backgroundColor: freqPalette, borderColor: '#05130d', borderWidth: 2, borderRadius: 6 });
+            if(document.getElementById('chartFreq25vs26')) {
+                let cfg = getChartConfig(freqStyle, { labels: mesNames, datasets: freqDatasets }, baseOptions, 'freq');
+                cfg.options.plugins.datalabels.formatter = getFormatter('freq');
+                charts.freq = new Chart(document.getElementById('chartFreq25vs26'), cfg);
+            }
+
+            let gravDatasets = [{ type: 'line', label: 'Tendência', data: tg26.map(v => Number(v.toFixed(2))), borderColor: '#34d399', borderWidth: 3, tension: 0.3, datalabels: { display: false } }];
+            if(has25Data) gravDatasets.push({ label: 'TG 2025', data: tg25, backgroundColor: '#334155', borderColor: '#05130d', borderWidth: 2, borderRadius: 6 });
+            gravDatasets.push({ label: 'TG 2026', data: tg26.map(v => Number(v.toFixed(2))), backgroundColor: freqPalette, borderColor: '#05130d', borderWidth: 2, borderRadius: 6 });
+            if(document.getElementById('chartGrav25vs26')) {
+                let cfg = getChartConfig(freqStyle, { labels: mesNames, datasets: gravDatasets }, baseOptions, 'grav');
+                cfg.options.plugins.datalabels.formatter = getFormatter('grav');
+                charts.grav = new Chart(document.getElementById('chartGrav25vs26'), cfg);
+            }
+
+            if(document.getElementById('chartPartesCorpo')) {
+                let style = customChartTypes['corpo'] || 'horizontalBar';
+                let cfg = getChartConfig(style, { labels: corpoTop.labels, datasets: [{ data: corpoTop.values, backgroundColor: getPalette('corpo', corpoTop.values.length), borderRadius: 6 }] }, { ...intOpts, plugins: { ...intOpts.plugins, legend: { display: false } } }, 'corpo');
+                charts.corpo = new Chart(document.getElementById('chartPartesCorpo'), cfg);
+            }
+            
+            if(document.getElementById('chartTiposLesao')) {
+                let lesaoOpts = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { top: 10, right: 10, bottom: 10, left: 10 } },
+                    plugins: {
+                        datalabels: { display: true, color: '#f8fafc', font: { weight: 'bold', size: 10 }, formatter: getFormatter('lesao') },
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                };
+                charts.lesao = new Chart(document.getElementById('chartTiposLesao'), { 
+                    type: 'pie', 
+                    data: { labels: lesaoTop.labels, datasets: [{ data: lesaoTop.values, backgroundColor: getPalette('lesao', lesaoTop.values.length) }] }, 
+                    options: lesaoOpts 
+                });
+            }
+
+            if(document.getElementById('chartPlanosAcao')) {
+                let style = customChartTypes['setores'] || 'doughnut';
+                let cfg = getChartConfig(style, { labels: ['Concluídos', 'Em Aberto', 'Vencidos'], datasets: [{ data: [totPlanos > 0 ? totPlanos*2 : 0, totPlanos, totVencidos], backgroundColor: ['#059669', '#34d399', '#475569'] }] }, { ...intOpts, plugins: { ...intOpts.plugins, legend: { position: 'bottom' } } }, 'setores');
+                charts.planos = new Chart(document.getElementById('chartPlanosAcao'), cfg);
+            }
+            if(document.getElementById('chartSetoresDesvio')) {
+                let style = customChartTypes['setoresDesvio'] || 'bar';
+                charts.setores = new Chart(document.getElementById('chartSetoresDesvio'), { type: style === 'doughnut' || style === 'pie' ? style : 'bar', data: { labels: setorTop.labels, datasets: [{ data: setorTop.values, backgroundColor: getPalette('setoresDesvio', setorTop.values.length), borderRadius: 6 }] }, options: { ...intOpts, plugins: { ...intOpts.plugins, legend: { display: false } } } });
+            }
+
+            if(document.getElementById('chartNearMiss')) {
+                let nearMissType = customChartTypes['nearMiss'] || 'bar';
+                let nearMissDatasets = [];
+                
+                if(nearMissType === 'line') {
+                    nearMissDatasets.push({
+                        label: 'Quase Acidentes',
+                        data: m26.map(d=>d.nearMissQtd),
+                        borderColor: '#34d399',
+                        backgroundColor: '#34d399',
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        tension: 0.3
+                    });
+                } else {
+                    nearMissDatasets.push({
+                        label: '2026',
+                        data: m26.map(d=>d.nearMissQtd),
+                        backgroundColor: getPalette('nearMiss', m26.length),
+                        borderRadius: 6
+                    });
+                }
+
+                let cfg = getChartConfig(nearMissType, { labels: mesNames, datasets: nearMissDatasets }, { ...baseOptions, plugins: { ...baseOptions.plugins, legend: { display: nearMissType === 'doughnut' || nearMissType === 'pie' } } }, 'nearMiss');
+                charts.nearMiss = new Chart(document.getElementById('chartNearMiss'), cfg);
+            }
+            
+            if(document.getElementById('chartInspecoesPR')) {
+                let inspType = customChartTypes['inspPR'] || 'bar';
+                let cfg = getChartConfig(inspType, { labels: mesNames, datasets: [{ label: '2026', data: m26.map(d=>Number(d.inspReal || 0)), backgroundColor: getPalette('inspPR', m26.length), borderRadius: 6 }] }, { ...baseOptions, plugins: { ...baseOptions.plugins, legend: { display: inspType === 'doughnut' || inspType === 'pie' } } }, 'inspPR');
+                charts.inspPR = new Chart(document.getElementById('chartInspecoesPR'), cfg);
+            }
+
+            if(document.getElementById('chartTreinamentos')) {
+                let trainType = customChartTypes['treinamentos'] || 'bar';
+                let cfg = getChartConfig(trainType, { labels: mesNames, datasets: [{ label: '2026', data: m26.map(d=>Number(d.treinoReal || 0)), backgroundColor: getPalette('treinamentos', m26.length), borderRadius: 6 }] }, { ...baseOptions, plugins: { ...baseOptions.plugins, legend: { display: trainType === 'doughnut' || trainType === 'pie' } } }, 'treinamentos');
+                charts.treinamentos = new Chart(document.getElementById('chartTreinamentos'), cfg);
+            }
+
+            if(document.getElementById('chartTemasTreino')) {
+                let temasOpts = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { top: 10, right: 10, bottom: 10, left: 10 } },
+                    plugins: {
+                        datalabels: { display: true, color: '#f8fafc', font: { weight: 'bold', size: 10 }, formatter: getFormatter('temasPie') },
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                };
+                charts.temasTreino = new Chart(document.getElementById('chartTemasTreino'), { 
+                    type: 'pie', 
+                    data: { labels: treinoTemaTop.labels, datasets: [{ data: treinoTemaTop.values, backgroundColor: getPalette('temasTreino', treinoTemaTop.values.length) }] }, 
+                    options: temasOpts 
+                });
+            }
+
+            if(document.getElementById('chartDDSsetor')) {
+                let ddsType = customChartTypes['ddsSetor'] || 'bar';
+                let cfg = getChartConfig(ddsType, { labels: Object.keys(ddsSetorMap), datasets: [{ data: Object.values(ddsSetorMap), backgroundColor: getPalette('ddsSetor', Object.keys(ddsSetorMap).length), borderRadius: 6 }] }, { ...baseOptions, plugins: { ...baseOptions.plugins, legend: { display: ddsType === 'doughnut' || ddsType === 'pie' } } }, 'ddsSetor');
+                charts.ddsSetor = new Chart(document.getElementById('chartDDSsetor'), cfg);
+            }
+        }
+
+        window.exportChartHQ = function(canvasId, fileName) {
+            const canvas = document.getElementById(canvasId);
+            if(!canvas) return;
+            const chartInstance = Chart.getChart(canvas);
+            if(!chartInstance) return;
+            const originalDPR = chartInstance.options.devicePixelRatio;
+            chartInstance.options.devicePixelRatio = 4;
+            chartInstance.resize();
+            setTimeout(() => {
+                const link = document.createElement('a');
+                link.download = `LPA_${fileName}_HD.png`;
+                link.href = canvas.toDataURL('image/png', 1.0);
+                link.click();
+                chartInstance.options.devicePixelRatio = originalDPR;
+                chartInstance.resize();
+            }, 100);
+        }
+
+        window.onload = function() { carregarDadosDoFirebase(); };
+    </script>
+</body>
+</html>
+```[cite: 1]
